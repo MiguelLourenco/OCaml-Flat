@@ -18,6 +18,7 @@
 (*
  * ChangeLog:
  *
+ * mar/2021 (amd) - Added semantic constrains (properties) to the exercices.
  * jan/2021 (amd) - Module in an independent file.
  * set/2019 (amd) - Initial version, inside the big file "OCamlFlat.ml"
  *)
@@ -32,7 +33,13 @@
 
 module type ExerciseSig =
 sig
-	type t = { problem : string; inside : words; outside : words; }
+	type t = {
+		problem : string;
+		inside : words;
+		outside : words;
+		properties : properties
+	}
+	
 	class exercise :
 		t Arg.alternatives ->
 			object
@@ -54,25 +61,28 @@ struct
 	type t = {
 		problem : string;
 		inside : words;
-		outside : words
+		outside : words;
+		properties : string set
 	}
 
 	class exercise (arg: 'r Arg.alternatives ) =
 		object(self) inherit Entity.entity arg "exercice"
 
-			val representation: t =
-				let j = Arg.fromAlternatives arg in
-					if j = JSon.JNull then
-						Arg.getRepresentation arg
-					else
-						let problem = JSon.field_string j "problem" in
-						let inside = JSon.field_string_set j "inside" in
-						let outside = JSon.field_string_set j "outside" in
-						{
-							problem = problem;
-							inside = Set.map (fun s -> Util.str2word s) inside;
-							outside = Set.map (fun s -> Util.str2word s) outside
-						}
+		val representation: t =
+			let j = Arg.fromAlternatives arg in
+				if j = JSon.JNull then
+					Arg.getRepresentation arg
+				else
+					let problem = JSon.field_string j "problem" in
+					let inside = JSon.field_string_set j "inside" in
+					let outside = JSon.field_string_set j "outside" in
+					let properties = JSon.field_string_set j "properties" in
+					{
+						problem = problem;
+						inside = Set.map Util.str2word inside;
+						outside = Set.map Util.str2word outside;
+						properties = properties
+					}
 
 		initializer self#handleErrors	(* placement is crucial - after representation *)
 
@@ -92,7 +102,10 @@ struct
 									(Set.toList rep.inside)));
 					("outside", JList (List.map
 									(fun w -> JString (Util.word2str w))
-									(Set.toList rep.outside)))
+									(Set.toList rep.outside)));
+					("properties", JList (List.map
+									(fun w -> JString w)
+									(Set.toList rep.properties)))
 				]
 		method tracing = ()
 	end
@@ -100,12 +113,12 @@ end
 
 module ExerciseTests : sig end =
 struct
-let active = false
+	let active = false
 
 	let test0 () =
-		let e = new Exercise.exercise (Arg.Predef "exer_re2fa") in
-			let j = e#toJSon in
-				JSon.show j
+		let e = new Exercise.exercise (Arg.Predef "exer_astar") in
+		let je = e#toJSon in
+			JSon.show je
 
 	let runAll =
 		if active then (

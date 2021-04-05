@@ -58,8 +58,9 @@ struct
 		}
 
 	type exercise = {
-			inside: string list ;
-			outside: string list
+			inside: string list;
+			outside: string list;
+			properties : string list
 		}
 
 
@@ -107,27 +108,29 @@ struct
 				rules = CFGSyntax.parse (Set.make cfg.rules)
 			}
 
-	let exer_convertTo (exer: Exercise.t) =
+	let exer_convertTo (exer: Exercise.t): exercise =
 		let inws = Set.map (fun w -> Util.word2str w) exer.inside in
 		let outws = Set.map (fun w -> Util.word2str w) exer.outside in
 			{
 				inside = Set.toList inws;
-				outside = Set.toList outws
+				outside = Set.toList outws;
+				properties = Set.toList exer.properties
 			}
 
-	let exer_convertFrom exer : Exercise.t =
+	let exer_convertFrom (exer: exercise) : Exercise.t =
 		let inws = List.map (fun s -> Util.str2word s) exer.inside in
 		let outws = List.map (fun s -> Util.str2word s) exer.outside in
 			{
 				problem = "";
 				inside = Set.make inws;
-				outside = Set.make outws
+				outside = Set.make outws;
+				properties = Set.make exer.properties
 			}
 
-	let exer_convertFailures ins outs =
+	let exer_convertFailures ins outs props =
 		let ins = Set.map (fun w -> Util.word2str w) ins in
 		let outs = Set.map (fun w -> Util.word2str w) outs in
-			(Set.toList ins, Set.toList outs)
+			(Set.toList ins, Set.toList outs, Set.toList props)
 
 
 	(* Automaton functions *)
@@ -342,8 +345,8 @@ struct
 		let a = new FiniteAutomaton.model (Arg.Representation fa) in
 		let exer = exer_convertFrom exer in
 		let e = new Exercise.exercise (Arg.Representation exer) in
-		let (ins,outs) = a#checkExerciseFailures e in
-			exer_convertFailures ins outs
+		let (ins,outs,props) = a#checkExerciseFailures e in
+			exer_convertFailures ins outs props
 
 	let exer_testRe exer re =
 		let re = re_convertFrom re in
@@ -357,8 +360,8 @@ struct
 		let a = new RegularExpression.model (Arg.Representation re) in
 		let exer = exer_convertFrom exer in
 		let e = new Exercise.exercise (Arg.Representation exer) in
-		let (ins,outs) = a#checkExerciseFailures e in
-			exer_convertFailures ins outs
+		let (ins,outs,props) = a#checkExerciseFailures e in
+			exer_convertFailures ins outs props
 
 	let exer_testCfg exer cfg =
 		let cfg = cfg_convertFrom cfg in
@@ -372,6 +375,6 @@ struct
 		let a = new ContextFreeGrammar.model (Arg.Representation cfg) in
 		let exer = exer_convertFrom exer in
 		let e = new Exercise.exercise (Arg.Representation exer) in
-		let (ins,outs) = a#checkExerciseFailures e in
-			exer_convertFailures ins outs
+		let (ins,outs,props) = a#checkExerciseFailures e in
+			exer_convertFailures ins outs props
 end

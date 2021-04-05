@@ -18,6 +18,7 @@
 (*
  * ChangeLog:
  *
+ * mar/2021 (amd) - New types 'property', 'properties'.
  * jan/2021 (amd) - Module in an independent file.
  * jun/2019 (amd) - Initial version, inside the big file "OCamlFlatSupport.ml".
  *)
@@ -43,6 +44,9 @@ struct
 
 	type state = string
 	type states = state set
+
+	type property = string
+	type properties = property set
 end
 
 open BasicTypes

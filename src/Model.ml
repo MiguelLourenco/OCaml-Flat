@@ -18,6 +18,7 @@
 (*
  * ChangeLog:
  *
+ * mar/2021 (amd) - Added support for semantic constrains (properties) in the exercices.
  * jan/2021 (amd) - Module in an independent file.
  * jun/2019 (amd) - Initial version, inside the big file "OCamlFlat.ml".
  *)
@@ -45,8 +46,11 @@ sig
 				method virtual accept : word -> bool
 				method virtual generate : int -> words
 				method virtual tracing : unit
+				
+				method checkProperty : string -> bool
 				method checkExercise : Exercise.exercise -> bool
-				method checkExerciseFailures : Exercise.exercise -> (words * words)
+				method checkExerciseFailures : Exercise.exercise
+											-> words * words * properties
 			end
 end
 
@@ -61,14 +65,29 @@ open Exercise
 			method virtual accept: word -> bool
 			method virtual generate: int -> words
 			method virtual tracing: unit
-
+			
+			method checkProperty (prop: string) =
+				match prop with
+					| "fail" | "false" -> false
+					| "true" | "none" -> true
+					| _ ->
+						let mesg = "checkProperty: unknown property ("
+										^ prop ^ ")" in
+							failwith mesg
+			
 			method checkExercise (exercise: exercise) =
-						Set.for_all (fun w -> self#accept w) exercise#representation.inside
-					&& Set.for_all (fun w -> not (self#accept w)) exercise#representation.outside
-
+				let rep = exercise#representation in
+					   Set.for_all self#accept rep.inside
+					&& Set.for_all (fun w -> not (self#accept w)) rep.outside
+					&& Set.for_all self#checkProperty rep.properties
+						
 			method checkExerciseFailures (exercise: exercise) =
-				(Set.filter (fun w -> not (self#accept w)) exercise#representation.inside,
-					Set.filter (fun w -> self#accept w) exercise#representation.outside)
+				let rep = exercise#representation in
+				(
+					Set.filter (fun w -> not (self#accept w)) rep.inside,
+					Set.filter self#accept rep.outside,
+					Set.filter (fun w -> not (self#checkProperty w)) rep.properties
+				)
 
 	end
 

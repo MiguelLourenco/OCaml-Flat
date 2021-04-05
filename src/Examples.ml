@@ -32,6 +32,7 @@ module type ExamplesSig =
 sig
 	val examples : string list
 	val example : string -> string
+	val jsonExample : string -> JSon.t
 	val see : string -> unit
 end
 
@@ -65,6 +66,19 @@ struct
 				["2", "1", "3"], ["3", "1", "2"], ["3", "0", "START"], ["START", "0", "3"]
 			],
 			acceptStates : ["1"]
+			} |}
+
+	let dfa_astar = {| {
+			kind : "finite automaton",
+			description : "this is an example",
+			name : "dfa_astar",
+			alphabet: ["a"],
+			states : ["START"],
+			initialState : "START",
+			transitions : [
+				["START", "a", "START"]
+			],
+			acceptStates : ["START"]
 			} |}
 
 	let fa_abc = {| {
@@ -155,11 +169,12 @@ struct
 
 	let exer_astar = {| {
 			kind : "exercice",
-			description : "this is an example",
+			description : "Exercise astar",
 			name : "exer_astar",
 			problem : "Convert the regular expression a* to finite automaton.",
-			inside : ["a","aa","aaa","aaaaaaa"],
-			outside : ["d","b","ava"]
+			inside : ["","a","aa","aaa","aaaaaaa"],
+			outside : ["d","b","ava"],
+			properties : ["none"]
 		} |}
 
 	let exer_abcd = {| {
@@ -168,7 +183,8 @@ struct
 			name : "exer_abcd",
 			problem : "Convert the regular expression (a+b)*(c+d) to finite automaton.",
 			inside : ["abc","c","ab","b","abac"],
-			outside : ["","aba","bab","abba","baab","abcd"]
+			outside : ["","aba","bab","abba","baab","abcd"],
+			properties : ["qqq"]
 		} |}
 
 	let exer_ab = {| {
@@ -177,7 +193,8 @@ struct
 			name : "exer_ab",
 			problem : "Convert the regular expression ab*+ba* to finite automaton.",
 			inside : ["a","ab","abb","abbbbbbbb","b","ba","baa","baaaaaa"],
-			outside : ["","aba","bab","abba","baab","c"]
+			outside : ["","aba","bab","abba","baab","c"],
+			properties : ["qqq"]
 		} |}
 
 	let exer_re2fa = {| {
@@ -186,7 +203,8 @@ struct
 			name : "exer_re2fa",
 			problem : "Converta o autómato finito com alfabeto: [x, y, z], estados: [S, T, V], estado inicial: S, transições [[S, x, S], [S, y, T], [S, z, V], [T, x, T], [T, z, T], [T, y, V], [V, x, T]], e estados finais: [V] em expressão regular.",
 			inside : ["z", "xz", "yy", "yzy", "xyy", "zxxy"],
-			outside : ["x","y","xy", "xyz", "yyx", "xzxz", "xyxz"]
+			outside : ["x","y","xy", "xyz", "yyx", "xzxz", "xyxz"],
+			properties : ["qqq"]
 		} |}
 
 	let exer_readwrite = {| {
@@ -195,7 +213,8 @@ struct
 			name : "exer_readwrite",
 			problem : "open,close,read,write",
 			inside : ["","orc","owc","orwc","owwrwrrc","ocorwc"],
-			outside : ["or","oo","o","w","r","c","orw","owrrww","corwc"]
+			outside : ["or","oo","o","w","r","c","orw","owrrww","corwc"],
+			properties : ["qqq"]
 		} |}
 
 
@@ -205,6 +224,7 @@ struct
 	let oflatExamplesTable = [
 		("dfa_1", dfa_1);
 		("dfa_2", dfa_2);
+		("dfa_astar", dfa_astar);
 		("fa_abc", fa_abc);
 		("nfa_1", nfa_1);
 		("nfa_2", nfa_2);
@@ -228,6 +248,9 @@ struct
 
 	let example name =
 		List.assoc name oflatExamplesTable
+
+	let jsonExample name =
+		JSon.from_string (example name)
 
 	let see name =
 		Util.println [example name]

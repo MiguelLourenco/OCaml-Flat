@@ -6,7 +6,8 @@ FLAGS =
 NAMES =		OCamlFlat Error Util Set Scanner JSon RegExpSyntax			\
 			CFGSyntax BasicTypes Configuration Examples					\
 			Entity Exercise Model FiniteAutomaton RegularExpression		\
-			ContextFreeGrammar PolyModel TopLevel Tests PreOpen
+			ContextFreeGrammar FiniteEnumeration PolyModel TopLevel		\
+			LearnOCaml Tests PreOpen
 
 define SRCFILES
 	$(addprefix src/, $(addsuffix .ml, $(foreach file, $(NAMES), $(file))))

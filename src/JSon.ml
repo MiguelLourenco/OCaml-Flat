@@ -38,6 +38,7 @@ sig
 	val from_string : string -> t
 	val from_file : string -> t
 
+	val to_string_n : int -> t -> string
 	val to_string : t -> string
 	val show : t -> unit
 
@@ -178,8 +179,12 @@ struct
 							^ String.concat ",\n" elems ^ "\n"
 							^ tab tab2 ^ "}"
 						)
+
+	let to_string_n n j =
+		textual 0 n j
+
 	let to_string j =
-		textual 0 0 j
+		to_string_n 0 j
 
 	let show (j: t) =
 		Util.println [to_string j]

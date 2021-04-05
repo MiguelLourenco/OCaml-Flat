@@ -74,8 +74,10 @@ module type FiniteAutomatonSig = sig
 
 				method representation : t
 
+				method checkProperty : string -> bool
 				method checkExercise : Exercise.exercise -> bool
-				method checkExerciseFailures : Exercise.exercise -> (words * words)
+				method checkExerciseFailures : Exercise.exercise
+											-> words * words * properties
 			end
 end
 
@@ -131,8 +133,7 @@ struct
 			transitionGet3 n
 
 	class model (arg: t Arg.alternatives) =
-		object(self) inherit Model.model arg modelDesignation
-
+		object(self) inherit Model.model arg modelDesignation as super
 			val representation: t =
 				let j = Arg.fromAlternatives arg in
 					if j = JSon.JNull then
@@ -185,7 +186,6 @@ struct
 
 				(* does initial state belong to the set of all states *)
 				let validInitSt = Set.belongs representation.initialState representation.states in
-
 
 				(* are all accepted states members of all states *)
 				let validAccSts = Set.subset representation.acceptStates representation.states in
@@ -722,7 +722,11 @@ struct
 				let rep = fa#representation in
 					Set.size representation.states = Set.size rep.states
 
-
+			method checkProperty (prop: string) =
+				match prop with
+					| "deterministic" -> self#isDeterministic
+					| "minimized" -> self#isMinimized
+					| _ -> super#checkProperty prop
 		end
 
 end
@@ -1247,8 +1251,17 @@ struct
 		let mfa = fa#minimize in
 		let j = mfa#toJSon in
 			JSon.show j
-
+			
+	let testExercice () =
+		let e = new Exercise.exercise (Arg.Predef "exer_astar") in
+		let fa = new FiniteAutomaton.model (Arg.Predef "dfa_astar") in
+		let (ins,outs,props) = fa#checkExerciseFailures e in	
+			Util.printWords (Set.toList ins);
+			Util.printWords (Set.toList outs);
+			Util.printStrings (Set.toList props)
+			
 	let runAll =
+		testExercice ();
 		if active then (
 			Util.header "FiniteAutomatonTests";
 			test0 ();

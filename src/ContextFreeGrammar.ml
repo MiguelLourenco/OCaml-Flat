@@ -60,8 +60,10 @@ sig
 				method acceptWithTracing: word -> unit
 				method generate: int -> words
 
+				method checkProperty : string -> bool
 				method checkExercise: Exercise.exercise -> bool
-				method checkExerciseFailures : Exercise.exercise -> (words * words)
+				method checkExerciseFailures : Exercise.exercise
+											-> words * words * properties
 			end
 end
 
@@ -129,7 +131,7 @@ struct
 
 
 	class model (arg: t Arg.alternatives) =
-		object(self) inherit Model.model arg modelDesignation
+		object(self) inherit Model.model arg modelDesignation as super
 
 			val representation: t =
 				let j = Arg.fromAlternatives arg in
@@ -451,6 +453,10 @@ struct
 					cleanNonWords res vs
 
 
+			method checkProperty (prop: string) =
+				match prop with
+					| "regular" -> self#isRegular
+					| _ -> super#checkProperty prop
 		end
 end
 

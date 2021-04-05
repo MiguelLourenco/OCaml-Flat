@@ -18,7 +18,8 @@
 (*
  * ChangeLog:
  *
- * jan/2021 (amd) - Created this module, collecting all the operation
+ * apr/2021 (amd) - Several new build functions.
+ * jan/2021 (amd) - Created this module, collecting all the operation.
                     involving two or more kinds of models.
                     This allows to got rid of the mutual recursion between
                     modules, allowing storing each module in a different file.
@@ -33,7 +34,10 @@
 
 module type PolyModelSig =
 sig
-	val loadModel : string -> Model.model
+	val json2model : JSon.t -> Model.model
+	val text2model : string -> Model.model
+	val file2model : string -> Model.model
+	val example2model : string -> Model.model
 	val re2fa : RegularExpression.model -> FiniteAutomaton.model
 	val fa2re : FiniteAutomaton.model -> RegularExpression.model
 	val re2cfg : RegularExpression.model -> ContextFreeGrammar.model
@@ -44,18 +48,27 @@ end
 
 module PolyModel : PolyModelSig =
 struct
+	let json2model (j: JSon.t): Model.model =	(* will build any model *)
+		let kind = JSon.field_string j "kind" in
+			if FiniteAutomaton.modelDesignation = kind then
+				(new FiniteAutomaton.model (Arg.JSon j) :> Model.model)
+			else if RegularExpression.modelDesignation = kind then
+				(new RegularExpression.model (Arg.JSon j) :> Model.model)
+			else if ContextFreeGrammar.modelDesignation = kind then
+				(new ContextFreeGrammar.model (Arg.JSon j) :> Model.model)
+			else if FiniteEnumeration.modelDesignation = kind then
+				(new FiniteEnumeration.model (Arg.JSon j) :> Model.model)
+			else
+				(new FiniteAutomaton.model (Arg.JSon j) :> Model.model)
 
-	let loadModel (filename: string): Model.model =	(* will load any model *)
-		let j = JSon.from_file filename in
-			let kind = JSon.field_string j "kind" in
-				if FiniteAutomaton.modelDesignation = kind then
-					(new FiniteAutomaton.model (Arg.JSon j) :> Model.model)
-				else if RegularExpression.modelDesignation = kind then
-					(new RegularExpression.model (Arg.JSon j) :> Model.model)
-				else if ContextFreeGrammar.modelDesignation = kind then
-					(new ContextFreeGrammar.model (Arg.JSon j) :> Model.model)
-				else
-					(new FiniteAutomaton.model (Arg.JSon j) :> Model.model)
+	let text2model (text: string): Model.model =	(* will build any model *)
+		json2model (JSon.from_string text)
+
+	let file2model (filename: string): Model.model =	(* will load any model *)
+		json2model (JSon.from_file filename)
+
+	let example2model (name: string): Model.model =	(* will load any model *)
+		text2model (Examples.example name)
 
 (**
 	* This method converts the automaton into a regular expression that accepts its language, by

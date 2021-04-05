@@ -22,7 +22,7 @@
  *)
 
 (*
- * Description: Finite languagem directly defined as a set of words.
+ * Description: Finite language, directly defined as a set of words.
  *)
 
 
@@ -80,7 +80,7 @@ end
 
 module FiniteEnumerationTests : sig end =
 struct
-	let active = true
+	let active = false
 	
 	let fe_colors = {| {
 		kind : "finite enumeration",

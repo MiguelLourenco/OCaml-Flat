@@ -62,9 +62,10 @@ sig
 
 				method representation : t
 
+				method checkProperty : string -> bool
 				method checkExercise : Exercise.exercise -> bool
-				method checkExerciseFailures : Exercise.exercise -> (words * words)
-
+				method checkExerciseFailures : Exercise.exercise
+											-> words * words * properties
 			end
 end
 
@@ -86,7 +87,7 @@ struct
 	let seqConcat aset bset = Set.flatMap (fun s1 -> Set.map (fun s2 -> s1@s2) bset) aset
 
 	class model (arg: t Arg.alternatives) =
-		object(self) inherit Model.model arg modelDesignation
+		object(self) inherit Model.model arg modelDesignation as super
 
 			val representation: t =
 				let j = Arg.fromAlternatives arg in
@@ -432,6 +433,9 @@ struct
 
 				new model (Arg.Representation (sre))
 
+			method checkProperty (prop: string) =
+				match prop with
+					| _ -> super#checkProperty prop
 		end
 end
 
