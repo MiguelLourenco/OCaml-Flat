@@ -18,6 +18,7 @@
 (*
  * ChangeLog:
  *
+ * may/2021 (amd) - Lots of miscellaneous new stuff.
  * jan/2021 (amd) - Module in an independent file.
  * jun/2019 (amd) - Initial version, inside the big file "OCamlFlatSupport.ml".
  *)
@@ -37,7 +38,12 @@ sig
 	val words2strings : char list list -> string list
 	val stripChars : string -> string -> string
 	val stripHead : string -> int -> string
-	
+	val char2DisplayString : char -> string
+	val string2DisplayString : string -> string
+	val charList2DisplayString : char list -> string
+	val stringList2DisplayString : string list -> string
+	val transitions2DisplayString : (string*char*string) list -> string
+
 	val flatMap:  ('a -> 'b list) -> 'a list -> 'b list
 	val concatAll : 'a list -> 'a list list -> 'a list list
 	val distrib2 : ('a -> 'b -> 'c) -> 'a * 'b -> 'c
@@ -53,6 +59,10 @@ sig
 	val printTransition : string -> char -> string -> unit
 	val printWords : char list list -> unit
 	val printStrings : string list -> unit
+	val show : string -> unit
+
+	val handleHomeDir : string -> string
+
 end
 
 module Util : UtilSig =
@@ -110,6 +120,29 @@ struct
 				end
 			done;
 			Bytes.to_string (Bytes.sub res 0 !j)
+
+	let char2DisplayString c =
+		"'" ^ (Char.escaped c) ^ "'"
+
+	let string2DisplayString s =
+		"\"" ^ s ^ "\""
+
+	let charList2DisplayString l =
+		let l1 = List.map (fun c -> (Char.escaped c)) l in
+		let core = String.concat "'; '" l1 in
+			"['" ^ core ^ "']"
+	
+	let stringList2DisplayString l =
+		let core = String.concat "\"; \"" l in
+			"[\"" ^ core ^ "\"]"
+
+	let transition2DisplayString (a,b,c) =
+		Printf.sprintf "(\"%s\", '%c', \"%s\")" a b c
+	
+	let transitions2DisplayString l =
+		let l1 = List.map transition2DisplayString l in
+		let core = String.concat "; " l1 in
+			"[" ^ core ^ "]"
 
 	let flatMap f l =
 		List.flatten (List.map f l)
@@ -185,6 +218,23 @@ struct
 
 	let printStrings (l: string list) =
 		List.iter printString l
+		
+	let show s =
+		print_string ("|" ^ s ^ "|\n")
+		
+	let handleHomeDir s =
+		match String.length s with
+		| 0 ->
+			""
+		| 1 ->
+			if s = "~" then Sys.getenv("HOME") else s
+		| n ->
+			if s.[0] = '~' then
+				if s.[1] = '/' then
+					Sys.getenv("HOME") ^ String.sub s 1 (n - 1)
+				else
+					"/home/" ^ String.sub s 1 (n - 1)
+			else s
 end
 
 module UtilTests =

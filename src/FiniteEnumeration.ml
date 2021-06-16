@@ -18,6 +18,7 @@
 (*
  * ChangeLog:
  *
+ * may/2021 (amd) - Added support for an extern representation.
  * mar/2021 (amd) - New module
  *)
 
@@ -29,39 +30,72 @@
 module FiniteEnumeration =
 struct
 
+	type tx = string list
+
 	type t = words
 
 	let modelDesignation = "finite enumeration"
 
-	class model (arg: t Arg.alternatives) =
+	let internalize (fe: tx): t =
+		Set.make (Util.strings2words fe)
+
+	let externalize (fe: t): tx =
+		Util.words2strings (Set.toList fe)
+
+	let fromJSon j =
+		let strings = JSon.field_string_set j "words" in
+		let words = Set.map Util.str2word strings in
+			words
+	
+	let toJSon (rep: t): JSon.t =
+		let open JSon in
+		let strings = Util.words2strings (Set.toList rep) in
+		JAssoc [
+			("words", JList (List.map (fun s -> JString s) strings))
+		]
+
+	let displayHeader (name: string) (moduleName: string) =
+		if name = "" then
+			""
+		else
+			("let " ^ name ^ ": " ^ moduleName ^ ".tx =\n\t\t")
+
+	let toDisplayString (name: string) (moduleName: string) (repx: tx): string =
+		Printf.sprintf {zzz|
+		%s	%s
+		|zzz}
+			(displayHeader name moduleName)
+			(Util.stringList2DisplayString repx)
+
+	class model (arg: (t,tx) Arg.alternatives) =
 		object(self) inherit Model.model arg modelDesignation as super
 		
 			val representation: t =
-				let j = Arg.fromAlternatives arg in
-					if j = JSon.JNull then
-						Arg.getRepresentation arg
-					else
-						let strings = JSon.field_string_set j "words" in
-						let words = Set.map Util.str2word strings in
-							words
+				match arg with
+					| Arg.Representation r -> r
+					| Arg.RepresentationX r -> internalize r
+					| _ -> fromJSon (Arg.fromAlternatives arg)
 
 			initializer self#handleErrors	(* placement is crucial - after representation *)
 
-			method representation =
+			method representation: t =
 				representation
 
+			method representationx: tx =
+				externalize representation
+
 			method toJSon: JSon.t =
-				let open JSon in
-				let rep = representation in
-				let strings = Util.words2strings (Set.toList rep) in
-				JAssoc [
-					("kind", JString self#kind);
-					("description", JString self#description);
-					("name", JString self#name);
-					("words", JList (List.map (fun s -> JString s) strings))
-				]
+				JSon.append (super#toJSon) (toJSon representation)
 
 			method validate: unit = ()
+
+			method example : JSon.t = 
+				JSon.from_string {| {
+					kind : "finite enumeration",
+					description : "this is an example",
+					name : "example",
+					words : ["Red", "Yellow", "Blue"]
+				} |}
 
 			method tracing : unit = ()
 
@@ -73,9 +107,20 @@ struct
 
 			method checkProperty (prop: string) =
 				match prop with
+					| "finite enumeration" -> true
 					| _ -> super#checkProperty prop
-		end
 
+			method moduleName =
+				"FiniteEnumeration"
+
+			method toDisplayString (name: string): string =
+				toDisplayString name self#moduleName self#representationx
+
+		end
+		
+		let register solution =
+			let model = new model (Arg.RepresentationX solution) in
+				(fun x -> model#accept (Util.str2word x))
 end
 
 module FiniteEnumerationTests : sig end =

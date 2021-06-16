@@ -18,6 +18,8 @@
 (*
  * ChangeLog:
  *
+ * jun/2021 (amd) - Added checks for '~' in the #validate method.
+ * may/2021 (amd) - Added support for an extern representation.
  * jan/2021 (amd) - Module in an independent file and some cleanup.
  * dec/2019 (jg) - Main functionalities.
  * jun/2019 (amd) - Initial skeleton, inside the big file "OCamlFlat.ml".
@@ -28,29 +30,39 @@
  *
  * TODO: More cleanup.
  *)
+ 
 
 module type FiniteAutomatonSig = sig
 
 	type transition = state * symbol * state
 	type transitions = transition set
+	type tx = {
+		alphabet : symbol list;
+		states : state list;
+		initialState : state;
+		transitions : transition list;
+		acceptStates : state list
+	}
 	type t = {
 		alphabet : symbols;
 		states : states;
 		initialState : state;
 		transitions : transitions;
-		acceptStates : states;
+		acceptStates : states
 	}
 	val modelDesignation : string
+	val register : tx -> (string -> bool)
 	class model :
-		t Arg.alternatives ->
+		(t,tx) Arg.alternatives ->
 			object
-				method kind : string
-				method description : string
-				method name : string
+				method id: Entity.t
 				method errors : string list
 				method handleErrors : unit
-				method validate : unit
 				method toJSon: JSon.t
+				method representation : t
+				method representationx : tx
+				method validate : unit
+				method example : JSon.t
 
 				method tracing : unit
 
@@ -72,12 +84,13 @@ module type FiniteAutomatonSig = sig
 				method minimize : model
 				method isMinimized : bool
 
-				method representation : t
-
 				method checkProperty : string -> bool
 				method checkExercise : Exercise.exercise -> bool
 				method checkExerciseFailures : Exercise.exercise
 											-> words * words * properties
+
+				method moduleName : string
+				method toDisplayString : string -> string
 			end
 end
 
@@ -85,11 +98,19 @@ module FiniteAutomaton : FiniteAutomatonSig =
 struct
 
 	type transition =
-		state	(* state *)
+		  state		(* state *)
 		* symbol	(* consumed input symbol *)
-		* state	(* next state *)
+		* state		(* next state *)
 
 	type transitions = transition set
+
+	type tx = {
+		alphabet : symbol list;
+		states : state list;
+		initialState : state;
+		transitions : transition list;
+		acceptStates : state list
+	}
 
 	type t = {
 		alphabet: symbols;			(* Alphabet *)
@@ -98,8 +119,43 @@ struct
 		transitions: transitions;	(* Transition relation *)
 		acceptStates: states		(* Accept states *)
 	}
-
+	
 	let modelDesignation = "finite automaton"
+
+	let internalize (fa: tx): t = {
+		alphabet = Set.make fa.alphabet;
+		states = Set.make fa.states;
+		initialState = fa.initialState;
+		transitions = Set.make fa.transitions;
+		acceptStates = Set.make fa.acceptStates
+	}
+
+	let externalize (fa: t): tx = {
+		alphabet = Set.toList fa.alphabet;
+		states = Set.toList fa.states;
+		initialState = fa.initialState;
+		transitions = Set.toList fa.transitions;
+		acceptStates = Set.toList fa.acceptStates
+	}
+
+	let fromJSon (j: JSon.t): t = {
+		alphabet = JSon.field_char_set j "alphabet";
+		states = JSon.field_string_set j "states";
+		initialState = JSon.field_string j "initialState";
+		transitions = JSon.field_triples_set j "transitions";
+		acceptStates = JSon.field_string_set j "acceptStates"
+	}
+
+	let toJSon (rep: t): JSon.t =
+		let open JSon in
+		JAssoc [
+			("alphabet", JList (List.map (fun c -> JString (Util.ch2str c)) (Set.toList rep.alphabet)));
+			("states", JList (List.map (fun s -> JString s) (Set.toList rep.states)));
+			("initialState", JString rep.initialState);
+			("transitions", JList (List.map (fun (a,b,c) ->
+				JList [JString a; JString (Util.ch2str b); JString c]) (Set.toList rep.transitions)));
+			("acceptStates", JList (List.map (fun s -> JString s) (Set.toList rep.acceptStates)))
+		]
 
 	(*------Auxiliary functions---------*)
 
@@ -107,7 +163,7 @@ struct
 	let transitionGet1 trns = Set.map ( fun (a,_,_) -> a ) trns
 	let transitionGet2 trns = Set.map ( fun (_,b,_) -> b ) trns
 	let transitionGet3 trns = Set.map ( fun (_,_,c) -> c ) trns
-	let transitionGet23 trns = Set.map (fun(_,b,c) -> (b,c)) trns
+	let transitionGet23 trns = Set.map (fun (_,b,c) -> (b,c)) trns
 
 	(* fuse all states into a new state *)
 	let fuseStates sts = String.concat "_" sts
@@ -132,45 +188,48 @@ struct
 		let n = Set.filter (fun (a,b,c) -> st = a && sy = b) t in
 			transitionGet3 n
 
-	class model (arg: t Arg.alternatives) =
+	let displayHeader (name: string) (moduleName: string) =
+		if name = "" then
+			""
+		else
+			("let " ^ name ^ ": " ^ moduleName ^ ".tx =\n\t\t")
+	
+	let toDisplayString (name: string) (moduleName: string) (repx: tx): string =
+		Printf.sprintf {zzz|
+		%s{
+			alphabet = %s;
+			states = %s;
+			initialState = %s;
+			transitions = %s;
+			acceptStates = %s
+		}
+		|zzz}
+			(displayHeader name moduleName)
+			(Util.charList2DisplayString repx.alphabet)
+			(Util.stringList2DisplayString repx.states)
+			(Util.string2DisplayString repx.initialState)
+			(Util.transitions2DisplayString repx.transitions)
+			(Util.stringList2DisplayString repx.acceptStates)
+	
+	class model (arg: (t,tx) Arg.alternatives) =
 		object(self) inherit Model.model arg modelDesignation as super
+		
 			val representation: t =
-				let j = Arg.fromAlternatives arg in
-					if j = JSon.JNull then
-						Arg.getRepresentation arg
-					else
-						let alphabet = JSon.field_char_set j "alphabet" in
-						let states = JSon.field_string_set j "states" in
-						let initialState = JSon.field_string j "initialState" in
-						let transitions = JSon.field_triples_set j "transitions" in
-						let acceptStates = JSon.field_string_set j "acceptStates" in
-							{	alphabet = alphabet;
-								states = states;
-								initialState = initialState;
-								transitions = transitions;
-								acceptStates = acceptStates
-							}
-
+				match arg with
+				| Arg.Representation r -> r
+				| Arg.RepresentationX r -> internalize r
+				| _ -> fromJSon (Arg.fromAlternatives arg)
+					
 			initializer self#handleErrors	(* placement is crucial - after representation *)
 
-			method representation =
+			method representation: t =
 				representation
 
-			method toJSon: JSon.t =
-				let open JSon in
-				let rep = representation in
-				JAssoc [
-					("kind", JString self#kind);
-					("description", JString self#description);
-					("name", JString self#name);
-					("alphabet", JList (List.map (fun c -> JString (Util.ch2str c)) (Set.toList rep.alphabet)));
-					("states", JList (List.map (fun s -> JString s) (Set.toList rep.states)));
-					("initialState", JString rep.initialState);
-					("transitions", JList (List.map (fun (a,b,c) ->
-						JList [JString a; JString (Util.ch2str b); JString c]) (Set.toList rep.transitions)));
-					("acceptStates", JList (List.map (fun s -> JString s) (Set.toList rep.acceptStates)))
-				]
+			method representationx: tx =
+				externalize representation
 
+			method toJSon: JSon.t =
+				JSon.append (super#toJSon) (toJSon representation)
 
 			(**
 			* This method verifies if the automaton is valid.
@@ -183,6 +242,9 @@ struct
 			* the automaton to be invalid
 			*)
 			method validate: unit = (
+
+				(* the alphabet must not contain " " *)
+				let validAlphabet = not (Set.belongs epsilon representation.alphabet) in
 
 				(* does initial state belong to the set of all states *)
 				let validInitSt = Set.belongs representation.initialState representation.states in
@@ -197,8 +259,13 @@ struct
 
 				(* do all transitions have states belonging to all states and symbols belonging to the alphabet *)
 				let validTrns = (Set.subset fromSt representation.states) &&
-				(Set.subset sy alpha) && (Set.subset toSt representation.states) in
+					(Set.subset sy alpha) && (Set.subset toSt representation.states) in
 
+
+				if not validAlphabet then
+					Error.error "epsilon"
+						"the alphabet contains epsilon, and it should not" ()
+				;
 
 				if not validInitSt then
 					Error.error representation.initialState
@@ -206,15 +273,28 @@ struct
 				;
 
 				if not validAccSts then
-					Error.error self#name
+					Error.error self#id.Entity.name
 						"not all accepted states belong to the set of all states" ()
 				;
 
 				if not validTrns then
-					Error.error self#name
+					Error.error self#id.Entity.name
 						"not all transitions are valid" ()
 				)
 
+			method example : JSon.t = 
+				JSon.from_string {| {
+					kind : "finite automaton",
+					description : "this is an example",
+					name : "example",
+					alphabet: ["a", "b"],
+					states : ["START"],
+					initialState : "START",
+					transitions : [
+						["START", "a", "START"], ["START", "b", "START"]
+					],
+					acceptStates : ["START"]
+				} |}
 
 			method tracing : unit = ()
 
@@ -274,7 +354,6 @@ struct
 
 
 			method acceptWithTracing (w:word): unit =
-
 
 				let transition sts sy t =
 					let nsts = Set.flatMap (fun st -> nextStates st sy t) sts in
@@ -726,8 +805,20 @@ struct
 				match prop with
 					| "deterministic" -> self#isDeterministic
 					| "minimized" -> self#isMinimized
-					| _ -> super#checkProperty prop
+					| "finite automaton" -> true
+					| _ -> super#checkProperty prop		
+					
+			method moduleName =
+				"FiniteAutomaton"
+
+			method toDisplayString (name: string): string =
+				toDisplayString name self#moduleName self#representationx
+
 		end
+		
+		let register solution =
+			let model = new model (Arg.RepresentationX solution) in
+				(fun x -> model#accept (Util.str2word x))
 
 end
 
@@ -1259,11 +1350,47 @@ struct
 			Util.printWords (Set.toList ins);
 			Util.printWords (Set.toList outs);
 			Util.printStrings (Set.toList props)
-			
+
+	let testRepresentationX =
+		let xxx: FiniteAutomaton.tx =
+			let open FiniteAutomaton in {
+				alphabet = ['a'; 'b'];
+				states = ["S1"; "S2"; "S3"; "S4"; "S5"];
+				initialState = "S1";
+				transitions =
+				  [("S1", 'a', "S2"); ("S1", 'b', "S3"); ("S2", 'a', "S3");
+				   ("S2", 'b', "S4"); ("S3", 'a', "S2"); ("S3", 'b', "S4");
+				   ("S4", 'a', "S2"); ("S4", 'a', "S5"); ("S4", 'b', "S3")];
+				acceptStates = ["S4"]
+			}
+		in new FiniteAutomaton.model (Arg.RepresentationX xxx)
+
+
+(*
+	let fa_til = {| {
+		kind : "finite automaton",
+		description : "this is an example",
+		name : "til",
+		alphabet : ["a","~"],
+		states : ["A","B"],
+		initialState : "A",
+		transitions : [
+				["A","~","A"], ["B","~","A"],
+				["A","~","B"], ["A","a","B"], ["B","~","B"]
+			],
+		acceptStates : ["B"]
+	} |}
+	
+	let () =
+		let fa = new FiniteAutomaton.model (Arg.Text fa_til) in
+		let fa1 = fa#toDeterministic in
+			JSon.show (fa1#toJSon)	
+	*)
+	
 	let runAll =
-		testExercice ();
 		if active then (
 			Util.header "FiniteAutomatonTests";
+			testExercice ();
 			test0 ();
 			testBug ();
 			testBug2 ();

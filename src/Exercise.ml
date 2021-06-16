@@ -41,17 +41,18 @@ sig
 	}
 	
 	class exercise :
-		t Arg.alternatives ->
+		(t,t) Arg.alternatives ->
 			object
-				method description : string
+				method id: Entity.t
 				method errors : string list
 				method handleErrors : unit
-				method kind : string
-				method name : string
-				method representation : t
 				method toJSon : JSon.t
-				method tracing : unit
+				method representation : t
 				method validate : unit
+				
+				method tracing : unit
+				
+				method moduleName : string
 			end
 end
 
@@ -64,50 +65,52 @@ struct
 		outside : words;
 		properties : string set
 	}
+	
+	let fromJSon j = {
+		problem = JSon.field_string j "problem";
+		inside = Set.map Util.str2word (JSon.field_string_set j "inside");
+		outside = Set.map Util.str2word (JSon.field_string_set j "outside");
+		properties = JSon.field_string_set j "properties"
+	}
+	
+	let toJSon (rep: t): JSon.t =
+		let open JSon in
+		JAssoc [
+			("problem", JString rep.problem );
+			("inside", JList (List.map
+							(fun w -> JString (Util.word2str w))
+							(Set.toList rep.inside)));
+			("outside", JList (List.map
+							(fun w -> JString (Util.word2str w))
+							(Set.toList rep.outside)));
+			("properties", JList (List.map
+							(fun w -> JString w)
+							(Set.toList rep.properties)))
+		]
 
-	class exercise (arg: 'r Arg.alternatives ) =
-		object(self) inherit Entity.entity arg "exercice"
+	class exercise (arg: (t,t) Arg.alternatives ) =
+		object(self) inherit Entity.entity arg "exercice" as super
 
-		val representation: t =
-			let j = Arg.fromAlternatives arg in
-				if j = JSon.JNull then
-					Arg.getRepresentation arg
-				else
-					let problem = JSon.field_string j "problem" in
-					let inside = JSon.field_string_set j "inside" in
-					let outside = JSon.field_string_set j "outside" in
-					let properties = JSon.field_string_set j "properties" in
-					{
-						problem = problem;
-						inside = Set.map Util.str2word inside;
-						outside = Set.map Util.str2word outside;
-						properties = properties
-					}
+			val representation: t =
+				match arg with
+					| Arg.Representation r -> r
+					| Arg.RepresentationX r -> r
+					| _ -> fromJSon (Arg.fromAlternatives arg)
 
-		initializer self#handleErrors	(* placement is crucial - after representation *)
+			initializer self#handleErrors	(* placement is crucial - after representation *)
 
-		method representation =
+			method representation =
 				representation
-		method validate = ()
-		method toJSon: JSon.t =
-			let open JSon in
-			let rep = representation in
-				JAssoc [
-					("kind", JString self#kind);
-					("description", JString self#description);
-					("name", JString self#name);
-					("problem", JString rep.problem );
-					("inside", JList (List.map
-									(fun w -> JString (Util.word2str w))
-									(Set.toList rep.inside)));
-					("outside", JList (List.map
-									(fun w -> JString (Util.word2str w))
-									(Set.toList rep.outside)));
-					("properties", JList (List.map
-									(fun w -> JString w)
-									(Set.toList rep.properties)))
-				]
-		method tracing = ()
+
+			method validate = ()
+			
+			method toJSon: JSon.t =
+				JSon.append (super#toJSon) (toJSon representation)
+
+			method tracing = ()
+			
+			method moduleName =
+				"Exercice"
 	end
 end
 

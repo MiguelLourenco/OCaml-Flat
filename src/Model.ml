@@ -18,7 +18,8 @@
 (*
  * ChangeLog:
  *
- * mar/2021 (amd) - Added support for semantic constrains (properties) in the exercices.
+ * mar/2021 (amd) - Added support for semantic constrains (properties) in
+ *                  the exercices, in this class and in all its subclasses.
  * jan/2021 (amd) - Module in an independent file.
  * jun/2019 (amd) - Initial version, inside the big file "OCamlFlat.ml".
  *)
@@ -33,15 +34,14 @@
 module type ModelSig =
 sig
 	class virtual model :
-		'r Arg.alternatives -> string ->
+		('r,'x) Arg.alternatives -> string ->
 			object
-				method kind : string
-				method description : string
-				method name : string
+				method id: Entity.t
 				method errors : string list
 				method handleErrors : unit
+				method toJSon: JSon.t
 				method virtual validate : unit
-				method virtual toJSon: JSon.t
+				method virtual example : JSon.t
 
 				method virtual accept : word -> bool
 				method virtual generate : int -> words
@@ -51,6 +51,8 @@ sig
 				method checkExercise : Exercise.exercise -> bool
 				method checkExerciseFailures : Exercise.exercise
 											-> words * words * properties
+				method virtual moduleName : string
+				method virtual toDisplayString: string -> string
 			end
 end
 
@@ -59,9 +61,11 @@ module Model : ModelSig
 struct
 open Exercise
 
-	class virtual model (arg: 'r Arg.alternatives) (expectedKind: string) =
+	class virtual model (arg: ('r,'x) Arg.alternatives) (expectedKind: string) =
 		object(self) inherit Entity.entity arg expectedKind
+		
 			method virtual validate: unit
+			method virtual example : JSon.t
 			method virtual accept: word -> bool
 			method virtual generate: int -> words
 			method virtual tracing: unit
@@ -69,7 +73,7 @@ open Exercise
 			method checkProperty (prop: string) =
 				match prop with
 					| "fail" | "false" -> false
-					| "true" | "none" -> true
+					| "true" -> true
 					| _ ->
 						let mesg = "checkProperty: unknown property ("
 										^ prop ^ ")" in
@@ -89,6 +93,9 @@ open Exercise
 					Set.filter (fun w -> not (self#checkProperty w)) rep.properties
 				)
 
+			method virtual moduleName: string
+				
+			method virtual toDisplayString: string -> string
 	end
 
 end

@@ -18,6 +18,7 @@
 (*
  * ChangeLog:
  *
+ * may/2021 (amd) - Added support for an extern representation.
  * jan/2021 (amd) - Module in an independent file and some cleanup.
  * dec/2019 (jg) - Main functionalities.
  * jun/2019 (amd) - Initial skeleton, inside the big file "OCamlFlat.ml".
@@ -30,7 +31,9 @@
  *)
 
 module type RegularExpressionSig =
-sig
+sig	
+	type tx = string
+	
 	type t = RegExpSyntax.t
 
 	type reTree =
@@ -38,17 +41,18 @@ sig
 	| Tree of word * t * reTree list
 
 	val modelDesignation : string
-
+	val register : tx -> (string -> bool)
 	class model :
-		t Arg.alternatives ->
+		(t,tx) Arg.alternatives ->
 			object
-				method kind : string
-				method description : string
-				method name : string
+				method id: Entity.t
 				method errors : string list
 				method handleErrors : unit
-				method validate : unit
 				method toJSon: JSon.t
+				method representation : t
+				method representationx : tx
+				method validate : unit
+				method example : JSon.t
 
 				method accept : word -> bool
 				method allTrees : word -> unit
@@ -60,12 +64,13 @@ sig
 
 				method simplify : model
 
-				method representation : t
-
 				method checkProperty : string -> bool
 				method checkExercise : Exercise.exercise -> bool
 				method checkExerciseFailures : Exercise.exercise
 											-> words * words * properties
+											
+				method moduleName : string
+				method toDisplayString : string -> string
 			end
 end
 
@@ -73,43 +78,67 @@ module RegularExpression : RegularExpressionSig =
 struct
 	open RegExpSyntax
 
-	type t = RegExpSyntax.t
+	type tx = string
 
+	type t = RegExpSyntax.t
+	
 	type reTree =
 	| Fail
 	| Tree of word * t * reTree list
 
 	let modelDesignation = "regular expression"
 
-	let ccc (x : RegExpSyntax.t): t = x
+	let internalize (re: tx): t =
+		RegExpSyntax.parse re
+
+	let externalize (re: t): tx =
+		RegExpSyntax.toString re
+
+	let fromJSon j =
+		let re = JSon.field_string j "re" in
+			RegExpSyntax.parse re
+
+	let toJSon (rep: t): JSon.t =
+		let open JSon in
+		JAssoc [
+			("re", JString (RegExpSyntax.toString rep));
+		]
 
 	(* auxiliary functions *)
 	let seqConcat aset bset = Set.flatMap (fun s1 -> Set.map (fun s2 -> s1@s2) bset) aset
 
-	class model (arg: t Arg.alternatives) =
+	let displayHeader (name: string) (moduleName: string) =
+		if name = "" then
+			""
+		else
+			("let " ^ name ^ ": " ^ moduleName ^ ".tx =\n\t\t")
+
+	let toDisplayString (name: string) (moduleName: string) (repx: tx): string =
+		Printf.sprintf {zzz|
+		%s	%s
+		|zzz}
+			(displayHeader name moduleName)
+			(Util.string2DisplayString repx)
+
+	class model (arg: (t,tx) Arg.alternatives) =
 		object(self) inherit Model.model arg modelDesignation as super
 
 			val representation: t =
-				let j = Arg.fromAlternatives arg in
-					if j = JSon.JNull then
-						Arg.getRepresentation arg
-					else
-						let re = JSon.field_string j "re" in
-							RegExpSyntax.parse re
+				match arg with
+					| Arg.Representation r -> r
+					| Arg.RepresentationX r -> internalize r
+					| _ -> fromJSon (Arg.fromAlternatives arg)
 
 			initializer self#handleErrors	(* placement is crucial - after representation *)
 
 			method toJSon: JSon.t =
-				let open JSon in
-				let rep = representation in
-				JAssoc [
-					("kind", JString self#kind);
-					("description", JString self#description);
-					("name", JString self#name);
-					("re", JString (RegExpSyntax.toString rep));
-				]
+				JSon.append (super#toJSon) (toJSon representation)
 
-			method representation = representation
+			method representation: t =
+				representation
+
+			method representationx: tx =
+				externalize representation
 
 			method validate = (
 
@@ -132,6 +161,13 @@ struct
 				*)
 			)
 
+			method example : JSon.t = 
+				JSon.from_string {| {
+					kind : "regular expression",
+					description : "this is a simple example",
+					name : "example",
+					re : "a*+(a+bc)*"
+				} |}
 
 			method tracing: unit = ()
 
@@ -435,8 +471,20 @@ struct
 
 			method checkProperty (prop: string) =
 				match prop with
+					| "regular expression" -> true
 					| _ -> super#checkProperty prop
+
+			method moduleName =
+				"RegularExpression"
+
+			method toDisplayString (name: string): string =
+				toDisplayString name self#moduleName self#representationx
+
 		end
+		
+		let register solution =
+			let model = new model (Arg.RepresentationX solution) in
+				(fun x -> model#accept (Util.str2word x))
 end
 
 
@@ -565,12 +613,22 @@ struct
 	let testTrace () =
 		let re = new RegularExpression.model (Arg.Predef "re_simple") in
 			re#allTrees ['a';'c';'b';'a';'c';'b']
+	
+	let re_more = {| {
+			kind : "regular expression",
+			description : "this is an example",
+			name : "re_more",
+			re : "**"
+	} |}
+				
+	let testMore () =
+		let re = new RegularExpression.model (Arg.Text re_more) in
+			re#allTrees ['a';'a']
 
 	let runAll =
 		if active then (
 			Util.header "RegularExpressionTests";
-			testTrace ();
-			testSimplify2 ()
+			testMore ()
 		)
 end
 

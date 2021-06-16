@@ -18,6 +18,8 @@
 (*
  * ChangeLog:
  *
+ * may/2021 (amd) - Added support for an extern representation.
+ * may/2021 (amd) - Centralized the handling of kind/description/name.
  * feb/2021 (amd) - Added the alternative Predef.
  * jan/2021 (amd) - Module in an independent file.
  * jun/2019 (amd) - Initial version, inside the big file "OCamlFlat.ml".
@@ -30,13 +32,14 @@
  *)
 
 module Arg =
-struct
-	type 'r alternatives =
+struct	
+	type ('r, 'x) alternatives =
 		| JSon of JSon.t
 		| Text of string
 		| File of string
 		| Predef of string
 		| Representation of 'r
+		| RepresentationX of 'x
 
 	let fromAlternatives alt =
 		match alt with
@@ -44,36 +47,85 @@ struct
 			| Text str -> JSon.from_string str
 			| File str -> JSon.from_file str
 			| Predef str -> JSon.from_string (Examples.example str)
-			| Representation r -> JSon.JNull
-
-	let getRepresentation alt =
-		match alt with
-			| Representation r -> r
-			| _ -> failwith "getRepresentation"
+			| _ -> JSon.JNull
 end
 
 module Entity =
 struct
-	class virtual entity (arg: 'r Arg.alternatives) (expectedKind: string) =
-		let errors = Error.start () in
-		let r = Arg.fromAlternatives arg in
-		let j = if r <> JSon.JNull then r else JSon.makeDummyIdentification(expectedKind) in
-		let (kind, description, name) = JSon.identification j in
+
+	type t = {
+		kind : string;
+		description : string;
+		name : string
+	}
+
+	let fromJSon (j: JSon.t): t =
+		let open JSon in {
+			kind = field_string j "kind";
+			description = field_string j "description";
+			name = field_string j "name"
+		}
+		
+	let toJSon (rep: t): JSon.t =
+		let open JSon in
+		JAssoc [
+			("kind", JString rep.kind);
+			("description", JString rep.description);
+			("name", JString rep.name)
+		]
+	
+	let dummyId (k: string): t = {
+		kind = k;
+		description = "_";
+		name = "_"
+	}
+		
+	class virtual entity (arg: ('r,'x) Arg.alternatives) (expectedKind: string) =
 		object(self)
-			method kind: string = kind
-			method description: string = description
-			method name: string = name
-			method errors : string list = !errors
+			
+			val errors = Error.start ()
+		
+			val id: t =
+				match arg with
+				| Arg.Representation r -> dummyId expectedKind
+				| Arg.RepresentationX r -> dummyId expectedKind
+				| _ -> fromJSon (Arg.fromAlternatives arg)
+		
+			method id: t =
+				id
+			
+			method errors : string list =
+				!errors
+			
 			method virtual validate: unit
-			method virtual toJSon: JSon.t
+			
+			method toJSon =
+				toJSon id
+			
 			method handleErrors = (
-				if self#kind <> expectedKind then
-					Error.error self#kind "Wrong kind" ();
+				if id.kind <> expectedKind then
+					Error.error id.kind "Wrong kind" ();
 				self#validate;
 				if Configuration.diagnosticsOn () then
-					Error.show expectedKind self#name;
+					Error.show expectedKind id.name;
 				Error.stop ()
 			)
+			
+			method moduleName =
+				"Entity"
 	end
+end
+
+module EntityTests : sig end =
+struct
+	let active = false
+
+	let test0 () =
+		()
+
+	let runAll =
+		if active then
+			Util.header "EntityTests";
+			test0 ()
 end
 

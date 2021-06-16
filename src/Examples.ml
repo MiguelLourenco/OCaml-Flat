@@ -97,6 +97,17 @@ struct
 			acceptStates : ["SUCCESS"]
 		} |}
 
+	let fa_error = {| {
+			kind : "finite automaton",
+			description : "this is an example",
+			name : "fa_error",
+			alphabet : ["a"],
+			states : ["A"],
+			initialState : "START",
+			transitions : [],
+			acceptStates : ["SUCCESS"]
+		} |}
+
 	let nfa_1 = {| {
 			kind : "finite automaton",
 			description : "this is an example",
@@ -155,6 +166,12 @@ struct
 			re : "a+a*+bc*"
 		} |}
 
+	let re_simple = {| {
+			kind : "regular expression",
+			description : "this is a simple example",
+			name : "re_simple",
+			re : "a*"
+		} |}
 
 	let cfg_simple = {| {
 			kind : "context free grammar",
@@ -174,7 +191,7 @@ struct
 			problem : "Convert the regular expression a* to finite automaton.",
 			inside : ["","a","aa","aaa","aaaaaaa"],
 			outside : ["d","b","ava"],
-			properties : ["none"]
+			properties : ["true"]
 		} |}
 
 	let exer_abcd = {| {

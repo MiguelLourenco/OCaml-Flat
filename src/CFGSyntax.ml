@@ -36,6 +36,7 @@ sig
 
 	val parse : string Set.t -> rule Set.t
 	val toStringList : rule Set.t -> string list
+	val (-->) : char -> string -> rule
 	val show : rule Set.t -> unit
 end
 
@@ -79,6 +80,7 @@ struct
 		match curr() with
 			| ' ' -> [[]]
 			| '|' -> skip(); []::parseBody ()
+			| '~' -> skip(); parseBody ()
 			| c -> skip();
 					match parseBody () with
 						| [] -> failwith "never happens"
@@ -111,6 +113,9 @@ struct
 	let toStringList rs =
 		let rl = Set.toList rs in
 			List.map toString1 rl
+	
+	let (-->) h b : rule =
+		{ head = h; body = Util.str2word b } ;;
 
 	let show rs =
 		Util.println [toString rs]

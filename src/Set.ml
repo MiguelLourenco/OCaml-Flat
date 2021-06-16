@@ -18,6 +18,7 @@
 (*
  * ChangeLog:
  *
+ * may/2021 (amd) - New projection functions; new fixed point function.
  * jan/2021 (amd) - Module in an independent file.
  * jun/2019 (amd) - Initial version, inside the big file "OCamlFlatSupport.ml".
  *)
@@ -35,6 +36,7 @@ sig
 	type 'a t (* opaque *)
 	val make : 'a list -> 'a t
 	val toList : 'a t -> 'a list
+	val cut : 'a t -> 'a * 'a t
 	val empty : 'a t
 	val size : 'a t -> int
 	val belongs : 'a -> 'a t -> bool
@@ -61,6 +63,13 @@ sig
 	val validate : 'a list -> string -> 'a t
 	val historicalFixedPoint : ('a t -> 'a t) -> ('a t) -> 'a t
 	val historicalFixedPointTracing : ('a t -> 'a t) -> ('a t) -> 'a t list
+	
+	val proj3_1 : ('a * 'b * 'c) t -> 'a t
+	val proj3_2 : ('a * 'b * 'c) t -> 'b t
+	val proj3_3 : ('a * 'b * 'c) t -> 'c t
+	val proj3_12 : ('a * 'b * 'c) t -> ('a * 'b) t
+	val proj3_23 : ('a * 'b * 'c) t -> ('b * 'c) t
+	
 	val test: unit -> int list list
 end
 
@@ -69,6 +78,7 @@ struct
 	type 'a t = 'a list
 	let make (l: 'a list): 'a t = List.sort_uniq compare l
 	let toList (s: 'a t): 'a list = s
+	let cut (s: 'a t) = (List.hd s, List.tl s)
 
 	let empty: 'a t = []
 	let size (s: 'a t): int = List.length s
@@ -80,7 +90,7 @@ struct
 	let inter (s1: 'a t) (s2: 'a t): 'a t = List.filter (fun x -> belongs x s2) s1
 	let diff (s1: 'a t) (s2: 'a t): 'a t = List.filter (fun x -> not (belongs x s2)) s1
 	let subset (s1: 'a t) (s2: 'a t): bool = List.for_all (fun x -> belongs x s2) s1
-
+	
 	let map f s = make (List.map f s)
 	let mapi f s = make (List.mapi f s)
 	let filter f s = List.filter f s
@@ -106,6 +116,11 @@ struct
 			then Error.error culprit "Repetitions in set" empty
 			else make l
 
+	let rec acumFixedPoint (f: 'a t -> 'a t) (x: 'a t): 'a t =
+		let next = union x (f x) in
+			if x = next then x
+			else acumFixedPoint f next
+
 	let historicalFixedPoint (f: 'a t -> 'a t) (x: 'a t): 'a t =
 		let rec historicalFixedPointX (f: 'a t -> 'a t) (x: 'a t) (acum: 'a t): 'a t =
 			let next = f x in
@@ -124,6 +139,12 @@ struct
 			else historicalFixedPointX f next newAcum newTrace
 		in
 			historicalFixedPointX f x empty [x]
+
+	let proj3_1 s3 = map ( fun (a,_,_) -> a ) s3
+	let proj3_2 s3 = map ( fun (_,b,_) -> b ) s3
+	let proj3_3 s3 = map ( fun (_,_,c) -> c ) s3
+	let proj3_12 s3 = map (fun (a,b,_) -> (a,b)) s3
+	let proj3_23 s3 = map (fun (_,b,c) -> (b,c)) s3
 
 	let test (): int list list =	(* Set.test ();; *)
 		toList (star (make[ [1]; [2;3]]) 4)
