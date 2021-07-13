@@ -166,12 +166,19 @@ struct
 			re : "a+a*+bc*"
 		} |}
 
-	let re_simple = {| {
+	let re_astar = {| {
 			kind : "regular expression",
 			description : "this is a simple example",
-			name : "re_simple",
+			name : "re_astar",
 			re : "a*"
 		} |}
+
+	let fe_colors = {| {
+		kind : "finite enumeration",
+		description : "this is an example",
+		name : "fe_colors",
+		words : ["Red", "Yellow", "Blue"]
+	} |}
 
 	let cfg_simple = {| {
 			kind : "context free grammar",
@@ -182,6 +189,26 @@ struct
 			initial : "S",
 			rules : [	"S -> 1S0 | P",
 						"P -> 0P1 | ~" ]
+		} |}
+
+	let cfg_balanced = {| {
+			kind : "context free grammar",
+			description : "Language of balanced square bracket parentheses",
+			name : "cfg_balanced",
+			alphabet : ["[", "]"],
+			variables : ["S"],
+			initial : "S",
+			rules : [	"S -> [S] | ~"]
+		} |}
+
+	let exer_balanced = {| {
+			kind : "exercice",
+			description : "Language of balanced square bracket parentheses",
+			name : "exer_balanced",
+			problem : "CFG than generated the language of balanced parentheses",
+			inside : ["","[]","[[]]","[[[]]]"],
+			outside : ["][","[][]","[[]]]"],
+			properties : ["true"]
 		} |}
 
 	let exer_astar = {| {
@@ -250,9 +277,15 @@ struct
 		("re_complex", re_complex);
 		("re_convoluted", re_convoluted);
 		("re_simple", re_simple);
+		("re_astar", re_astar);
+
+		("fe_colors", fe_colors);
 
 		("cfg_simple", cfg_simple);
+		("cfg_balanced", cfg_balanced);
 
+
+		("exer_balanced", exer_balanced);
 		("exer_astar", exer_astar);
 		("exer_abcd", exer_abcd);
 		("exer_ab", exer_ab);
@@ -267,9 +300,19 @@ struct
 		List.assoc name oflatExamplesTable
 
 	let jsonExample name =
-		JSon.from_string (example name)
+		let j = JSon.parse (example name) in
+			if j = JSon.JNull then
+				Error.show "example" name;
+			j
 
 	let see name =
 		Util.println [example name]
+
+	let validate () =
+		List.iter (fun n -> ignore (jsonExample n)) examples
+
+	let _ =
+		if false then
+			validate ()
 
 end

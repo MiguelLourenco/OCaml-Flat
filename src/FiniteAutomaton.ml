@@ -18,7 +18,8 @@
 (*
  * ChangeLog:
  *
- * jun/2021 (amd) - Added checks for '~' in the #validate method.
+ * jul/2021 (amd) - Improved Learn-OCaml support and error handling.
+ * jun/2021 (amd) - Added checks for epsilon ('~') in the #validate method.
  * may/2021 (amd) - Added support for an extern representation.
  * jan/2021 (amd) - Module in an independent file and some cleanup.
  * dec/2019 (jg) - Main functionalities.
@@ -51,7 +52,6 @@ module type FiniteAutomatonSig = sig
 		acceptStates : states
 	}
 	val modelDesignation : string
-	val register : tx -> (string -> bool)
 	class model :
 		(t,tx) Arg.alternatives ->
 			object
@@ -62,7 +62,6 @@ module type FiniteAutomatonSig = sig
 				method representation : t
 				method representationx : tx
 				method validate : unit
-				method example : JSon.t
 
 				method tracing : unit
 
@@ -89,8 +88,12 @@ module type FiniteAutomatonSig = sig
 				method checkExerciseFailures : Exercise.exercise
 											-> words * words * properties
 
+			(* Learn-OCaml support *)
 				method moduleName : string
+				method xTypeName : string
+				method xTypeDeclString : string
 				method toDisplayString : string -> string
+				method example : JSon.t
 			end
 end
 
@@ -138,13 +141,21 @@ struct
 		acceptStates = Set.toList fa.acceptStates
 	}
 
-	let fromJSon (j: JSon.t): t = {
-		alphabet = JSon.field_char_set j "alphabet";
-		states = JSon.field_string_set j "states";
-		initialState = JSon.field_string j "initialState";
-		transitions = JSon.field_triples_set j "transitions";
-		acceptStates = JSon.field_string_set j "acceptStates"
-	}
+	let fromJSon (j: JSon.t): t =
+		if j = JSon.JNull || not (JSon.hasField j "kind") then {
+			alphabet = Set.empty;
+			states = Set.make ["_"];
+			initialState = "_";
+			transitions = Set.empty;
+			acceptStates = Set.empty
+		}
+		else {
+			alphabet = JSon.fieldCharSet j "alphabet";
+			states = JSon.fieldStringSet j "states";
+			initialState = JSon.fieldString j "initialState";
+			transitions = JSon.fieldTriplesSet j "transitions";
+			acceptStates = JSon.fieldStringSet j "acceptStates"
+		}
 
 	let toJSon (rep: t): JSon.t =
 		let open JSon in
@@ -188,13 +199,13 @@ struct
 		let n = Set.filter (fun (a,b,c) -> st = a && sy = b) t in
 			transitionGet3 n
 
-	let displayHeader (name: string) (moduleName: string) =
+	let displayHeader (name: string) (xTypeName: string) =
 		if name = "" then
 			""
 		else
-			("let " ^ name ^ ": " ^ moduleName ^ ".tx =\n\t\t")
+			("let " ^ name ^ ": " ^ xTypeName ^ " =\n\t\t")
 	
-	let toDisplayString (name: string) (moduleName: string) (repx: tx): string =
+	let toDisplayString (name: string) (xTypeName: string) (repx: tx): string =
 		Printf.sprintf {zzz|
 		%s{
 			alphabet = %s;
@@ -204,7 +215,7 @@ struct
 			acceptStates = %s
 		}
 		|zzz}
-			(displayHeader name moduleName)
+			(displayHeader name xTypeName)
 			(Util.charList2DisplayString repx.alphabet)
 			(Util.stringList2DisplayString repx.states)
 			(Util.string2DisplayString repx.initialState)
@@ -261,40 +272,25 @@ struct
 				let validTrns = (Set.subset fromSt representation.states) &&
 					(Set.subset sy alpha) && (Set.subset toSt representation.states) in
 
-
 				if not validAlphabet then
-					Error.error "epsilon"
-						"the alphabet contains epsilon, and it should not" ()
+					Error.error self#id.Entity.name
+						"The alphabet contains epsilon '~', and it should not" ()
 				;
 
 				if not validInitSt then
-					Error.error representation.initialState
-						"initial state does not belong to the set of all states" ()
+					Error.error self#id.Entity.name
+						"The initial state does not belong to the set of all states" ()
 				;
 
 				if not validAccSts then
 					Error.error self#id.Entity.name
-						"not all accepted states belong to the set of all states" ()
+						"Some accept states do not belong to the set of all states" ()
 				;
 
 				if not validTrns then
 					Error.error self#id.Entity.name
-						"not all transitions are valid" ()
+						"Some transitions are invalid" ()
 				)
-
-			method example : JSon.t = 
-				JSon.from_string {| {
-					kind : "finite automaton",
-					description : "this is an example",
-					name : "example",
-					alphabet: ["a", "b"],
-					states : ["START"],
-					initialState : "START",
-					transitions : [
-						["START", "a", "START"], ["START", "b", "START"]
-					],
-					acceptStates : ["START"]
-				} |}
 
 			method tracing : unit = ()
 
@@ -808,18 +804,44 @@ struct
 					| "finite automaton" -> true
 					| _ -> super#checkProperty prop		
 					
+		(* Learn-OCaml support *)
 			method moduleName =
 				"FiniteAutomaton"
 
+			method xTypeName =
+				"finiteAutomaton"
+
+			method xTypeDeclString : string = {|
+				type symbol = char
+				type state = string
+				type finiteAutomaton = {
+					alphabet : symbol list;
+					states : state list;
+					initialState : state;
+					transitions : (state * symbol * state) list;
+					acceptStates : state list
+				}|}
+
 			method toDisplayString (name: string): string =
-				toDisplayString name self#moduleName self#representationx
+				toDisplayString name self#xTypeName self#representationx
+
+			method example : JSon.t =
+				JSon.parse {|
+				{
+					kind : "finite automaton",
+					description : "this is an example",
+					name : "example",
+					alphabet: ["w", "z"],
+					states : ["START", "X", "Z"],
+					initialState : "START",
+					transitions : [
+						["START", "w", "X"], ["X", "z", "X"]
+					],
+					acceptStates : ["Z"]
+				}
+			|}
 
 		end
-		
-		let register solution =
-			let model = new model (Arg.RepresentationX solution) in
-				(fun x -> model#accept (Util.str2word x))
-
 end
 
 module FiniteAutomatonTests : sig end =
@@ -847,7 +869,7 @@ struct
 			Util.printStates (Set.toList fa2#productive);
 			Util.println []
 
-	let fa_accept = {| {
+	let faAccept = {| {
 		kind : "finite automaton",
 		description : "this is an example",
 		name : "ab123",
@@ -862,7 +884,7 @@ struct
 		acceptStates : ["2", "3"]
 	} |}
 
-	let fa_accept2 = {| {
+	let faAccept2 = {| {
 		kind : "finite automaton",
 		description : "this is an example",
 		name : "abc",
@@ -885,7 +907,7 @@ struct
 		in Util.println [msg]
 
 	let testAcceptBF () =
-		let fa = new FiniteAutomaton.model (Arg.Text fa_accept) in
+		let fa = new FiniteAutomaton.model (Arg.Text faAccept) in
 			check fa#acceptBreadthFirst [];
 			check fa#acceptBreadthFirst ['a'];
 			check fa#acceptBreadthFirst ['a';'b'];
@@ -898,7 +920,7 @@ struct
 			Util.println []
 
 	let testAcceptBF2 () =
-		let fa = new FiniteAutomaton.model (Arg.Text fa_accept2) in
+		let fa = new FiniteAutomaton.model (Arg.Text faAccept2) in
 			check fa#acceptBreadthFirst [];
 			check fa#acceptBreadthFirst ['a'];
 			check fa#acceptBreadthFirst ['a';'d'];
@@ -907,7 +929,7 @@ struct
 			Util.println []
 
 	let testAccept () =
-		let fa = new FiniteAutomaton.model (Arg.Text fa_accept) in
+		let fa = new FiniteAutomaton.model (Arg.Text faAccept) in
 			check fa#accept [];
 			check fa#accept ['a'];
 			check fa#accept ['a';'b'];
@@ -920,7 +942,7 @@ struct
 			Util.println []
 
 	let testAccept2 () =
-		let fa = new FiniteAutomaton.model (Arg.Text fa_accept2) in
+		let fa = new FiniteAutomaton.model (Arg.Text faAccept2) in
 			check fa#accept [];
 			check fa#accept ['a'];
 			check fa#accept ['a';'d'];
@@ -932,7 +954,7 @@ struct
 		let fa = new FiniteAutomaton.model (Arg.Predef "fa_abc") in
 			fa#acceptWithTracing ['a';'b';'e']
 
-	let fa_generate = {| {
+	let faGenerate = {| {
 		kind : "finite automaton",
 		description : "this is an example",
 		name : "abc",
@@ -947,7 +969,7 @@ struct
 		acceptStates : ["S3"]
 	} |}
 
-	let fa_generate2 = {| {
+	let faGenerate2 = {| {
 		kind : "finite automaton",
 		description : "this is an example",
 		name : "abc",
@@ -962,7 +984,7 @@ struct
 		acceptStates : ["S2"]
 	} |}
 
-	let fa_generate3 = {| {
+	let faGenerate3 = {| {
 		kind : "finite automaton",
 		description : "this is an example",
 		name : "abc",
@@ -975,7 +997,7 @@ struct
 		acceptStates : ["S1"]
 	} |}
 
-	let fa_generate4 = {| {
+	let faGenerate4 = {| {
 		kind : "finite automaton",
 		description : "this is an example",
 		name : "abc",
@@ -990,7 +1012,7 @@ struct
 	} |}
 
 	let testGenerate () =
-		let fa = new FiniteAutomaton.model (Arg.Text fa_generate) in
+		let fa = new FiniteAutomaton.model (Arg.Text faGenerate) in
 			Util.println ["generated words size 0:"]; Util.printWords (Set.toList (fa#generate 0) );
 			Util.println ["generated words size 1:"]; Util.printWords (Set.toList (fa#generate 1) );
 			Util.println ["generated words size 2:"]; Util.printWords (Set.toList (fa#generate 2) );
@@ -998,7 +1020,7 @@ struct
 			Util.println []
 
 	let testGenerate2 () =
-		let fa = new FiniteAutomaton.model (Arg.Text fa_generate2) in
+		let fa = new FiniteAutomaton.model (Arg.Text faGenerate2) in
 			Util.println ["generated words size 0:"]; Util.printWords (Set.toList (fa#generate 0));
 			Util.println ["generated words size 1:"]; Util.printWords (Set.toList (fa#generate 1));
 			Util.println ["generated words size 2:"]; Util.printWords (Set.toList (fa#generate 2));
@@ -1009,7 +1031,7 @@ struct
 			Util.println []
 
 	let testGenerate3 () =
-		let fa = new FiniteAutomaton.model (Arg.Text fa_generate3) in
+		let fa = new FiniteAutomaton.model (Arg.Text faGenerate3) in
 			Util.println ["generated words size 0:"]; Util.printWords (Set.toList (fa#generate 0));
 			Util.println ["generated words size 1:"]; Util.printWords (Set.toList (fa#generate 1));
 			Util.println ["generated words size 10:"]; Util.printWords (Set.toList (fa#generate 10));
@@ -1019,7 +1041,7 @@ struct
 			Util.println []
 
 	let testGenerate4 () =
-		let fa = new FiniteAutomaton.model (Arg.Text fa_generate4) in
+		let fa = new FiniteAutomaton.model (Arg.Text faGenerate4) in
 			Util.println ["generated words size 0:"]; Util.printWords (Set.toList (fa#generate 0));
 			Util.println ["generated words size 1:"]; Util.printWords (Set.toList (fa#generate 1));
 			Util.println ["generated words size 10:"]; Util.printWords (Set.toList (fa#generate 10));
@@ -1027,20 +1049,20 @@ struct
 			Util.println []
 
 	let testGenerateUntil () =
-		let fa = new FiniteAutomaton.model (Arg.Text fa_generate) in
+		let fa = new FiniteAutomaton.model (Arg.Text faGenerate) in
 			Util.println ["generated words size 5:"]; Util.printWords (Set.toList (fa#generateUntil 5));
 			Util.println [];
-		let fa = new FiniteAutomaton.model (Arg.Text fa_generate2) in
+		let fa = new FiniteAutomaton.model (Arg.Text faGenerate2) in
 			Util.println ["generated words size 5:"]; Util.printWords (Set.toList (fa#generateUntil 5));
 			Util.println [];
-		let fa = new FiniteAutomaton.model (Arg.Text fa_generate3) in
+		let fa = new FiniteAutomaton.model (Arg.Text faGenerate3) in
 			Util.println ["generated words size 5:"]; Util.printWords (Set.toList (fa#generateUntil 5));
 			Util.println [];
-		let fa = new FiniteAutomaton.model (Arg.Text fa_generate4) in
+		let fa = new FiniteAutomaton.model (Arg.Text faGenerate4) in
 			Util.println ["generated words size 5:"]; Util.printWords (Set.toList (fa#generateUntil 5));
 			Util.println []
 
-	let fa_reach = {| {
+	let faReach = {| {
 		kind : "finite automaton",
 		description : "this is an example",
 		name : "abc",
@@ -1052,7 +1074,7 @@ struct
 		acceptStates : ["S1"]
 	} |}
 
-	let fa_reach2 = {| {
+	let faReach2 = {| {
 		kind : "finite automaton",
 		description : "this is an example",
 		name : "abc",
@@ -1071,14 +1093,14 @@ struct
 
 	let testReachable () =
 			let open FiniteAutomaton in
-			let fa = new FiniteAutomaton.model (Arg.Text fa_reach) in
-			let fa2 = new FiniteAutomaton.model (Arg.Text fa_reach2) in
+			let fa = new FiniteAutomaton.model (Arg.Text faReach) in
+			let fa2 = new FiniteAutomaton.model (Arg.Text faReach2) in
 			let start = fa#representation.initialState in
 			let start2 = fa2#representation.initialState in
 				Util.println ["reachable states:"]; Util.printStates (Set.toList (fa#reachable start)); Util.println [];
 				Util.println ["reachable states:"]; Util.printStates (Set.toList (fa#reachable start2)); Util.println []
 
-	let fa_productive = {| {
+	let faProductive = {| {
 		kind : "finite automaton",
 		description : "this is an example",
 		name : "abc",
@@ -1092,7 +1114,7 @@ struct
 		acceptStates : ["S4"]
 	} |}
 
-	let fa_productive2 = {| {
+	let faProductive2 = {| {
 		kind : "finite automaton",
 		description : "this is an example",
 		name : "abc",
@@ -1111,13 +1133,13 @@ struct
 	} |}
 
 	let testProductive () =
-		let fa = new FiniteAutomaton.model (Arg.Text fa_productive) in
-		let fa2 = new FiniteAutomaton.model (Arg.Text fa_productive2) in
+		let fa = new FiniteAutomaton.model (Arg.Text faProductive) in
+		let fa2 = new FiniteAutomaton.model (Arg.Text faProductive2) in
 			Util.println ["productive states:"]; Util.printStates (Set.toList (fa#productive)); Util.println [];
 			Util.println ["productive states:"]; Util.printStates (Set.toList (fa2#productive)); Util.println []
 
 
-	let fa_clean = {| {
+	let faClean = {| {
 		kind : "finite automaton",
 		description : "this is an example",
 		name : "abc",
@@ -1131,7 +1153,7 @@ struct
 		acceptStates : ["S4"]
 	} |}
 
-	let fa_clean2 = {| {
+	let faClean2 = {| {
 		kind : "finite automaton",
 		description : "this is an example",
 		name : "abc",
@@ -1146,8 +1168,8 @@ struct
 	} |}
 
 	let testClean () =
-		let fa = new FiniteAutomaton.model (Arg.Text fa_clean) in
-		let fa2 = new FiniteAutomaton.model (Arg.Text fa_clean2) in
+		let fa = new FiniteAutomaton.model (Arg.Text faClean) in
+		let fa2 = new FiniteAutomaton.model (Arg.Text faClean2) in
 		let mfa = fa#cleanUselessStates in
 		let mfa2 = fa2#cleanUselessStates in
 		let j = mfa#toJSon in
@@ -1155,7 +1177,7 @@ struct
 			JSon.show j; Util.println [];
 			JSon.show j2; Util.println []
 
-	let fa_isDeter = {| {
+	let faIsDeter = {| {
 		kind : "finite automaton",
 		description : "this is an example",
 		name : "isDeter",
@@ -1169,7 +1191,7 @@ struct
 		acceptStates : ["S3"]
 	} |}
 
-	let fa_isDeter2 = {| {
+	let faIsDeter2 = {| {
 		kind : "finite automaton",
 		description : "this is an example",
 		name : "isDeter",
@@ -1184,7 +1206,7 @@ struct
 		acceptStates : ["S5"]
 	} |}
 
-	let fa_isDeter3 = {| {
+	let faIsDeter3 = {| {
 		kind : "finite automaton",
 		description : "this is an example",
 		name : "isDeter",
@@ -1199,7 +1221,7 @@ struct
 		acceptStates : ["S4"]
 	} |}
 
-	let fa_toDeter = {| {
+	let faToDeter = {| {
 		kind : "finite automaton",
 		description : "this is an example",
 		name : "abc",
@@ -1216,12 +1238,12 @@ struct
 	} |}
 
 	let testIsDeterministic () =
-		let fa = new FiniteAutomaton.model (Arg.Text fa_isDeter) in
-		let fa2 = new FiniteAutomaton.model (Arg.Text fa_isDeter2) in
-		let fa3 = new FiniteAutomaton.model (Arg.Text fa_isDeter3) in
+		let fa = new FiniteAutomaton.model (Arg.Text faIsDeter) in
+		let fa2 = new FiniteAutomaton.model (Arg.Text faIsDeter2) in
+		let fa3 = new FiniteAutomaton.model (Arg.Text faIsDeter3) in
 			if fa#isDeterministic then
 				Util.println ["automata is deterministic"] else Util.println ["automata is non-deterministic"];
-			if fa2#isDeterministic then
+		if fa2#isDeterministic then
 				Util.println ["automata is deterministic"] else Util.println ["automata is non-deterministic"];
 			if fa3#isDeterministic then
 				Util.println ["automata is deterministic"] else Util.println ["automata is non-deterministic"]
@@ -1229,11 +1251,11 @@ struct
 
 
 	let testToDeterministic () =
-		let fa = new FiniteAutomaton.model (Arg.Text fa_toDeter) in
+		let fa = new FiniteAutomaton.model (Arg.Text faToDeter) in
 		let mfa = fa#toDeterministic in
 		let j = mfa#toJSon in
 			JSon.show j;
-		let fa = new FiniteAutomaton.model (Arg.Text fa_isDeter) in
+		let fa = new FiniteAutomaton.model (Arg.Text faIsDeter) in
 		let mfa = fa#toDeterministic in
 		let j = mfa#toJSon in
 			JSon.show j
@@ -1245,7 +1267,7 @@ struct
 			Set.iter (fun s -> Util.print ["set: "]; Util.printStates (Set.toList s)) s
 
 
-	let fa_minimize = {| {
+	let faMinimize = {| {
 		kind : "finite automaton",
 		description : "this is an example",
 		name : "abc",
@@ -1262,7 +1284,7 @@ struct
 		acceptStates : ["S4"]
 	} |}
 
-	let fa_minimize2 = {| {
+	let faMinimize2 = {| {
 		kind : "finite automaton",
 		description : "this is an example",
 		name : "min",
@@ -1285,7 +1307,7 @@ struct
 		acceptStates : ["S10"]
 	} |}
 
-	let fa_minimize3 = {| {
+	let faMinimize3 = {| {
 		kind : "finite automaton",
 		description : "this is an example",
 		name : "abc",
@@ -1303,7 +1325,7 @@ struct
 		acceptStates : ["S4","S5"]
 	} |}
 
-	let fa_minimize4 = {| {
+	let faMinimize4 = {| {
 		kind : "finite automaton",
 		description : "this is an example",
 		name : "abc",
@@ -1320,25 +1342,25 @@ struct
 	} |}
 
 	let testMinimize () =
-		let fa = new FiniteAutomaton.model (Arg.Text fa_minimize) in
+		let fa = new FiniteAutomaton.model (Arg.Text faMinimize) in
 		let mfa = fa#minimize in
 		let j = mfa#toJSon in
 			JSon.show j
 
 	let testMinimize2 () =
-		let fa = new FiniteAutomaton.model (Arg.Text fa_minimize2) in
+		let fa = new FiniteAutomaton.model (Arg.Text faMinimize2) in
 		let mfa = fa#minimize in
 		let j = mfa#toJSon in
 			JSon.show j
 
 	let testMinimize3 () =
-		let fa = new FiniteAutomaton.model (Arg.Text fa_minimize3) in
+		let fa = new FiniteAutomaton.model (Arg.Text faMinimize3) in
 		let mfa = fa#minimize in
 		let j = mfa#toJSon in
 			JSon.show j
 
 	let testMinimize4 () =
-		let fa = new FiniteAutomaton.model (Arg.Text fa_minimize4) in
+		let fa = new FiniteAutomaton.model (Arg.Text faMinimize4) in
 		let mfa = fa#minimize in
 		let j = mfa#toJSon in
 			JSon.show j

@@ -18,10 +18,11 @@
 (*
  * ChangeLog:
  *
- * jun/2021 (amd) - added support for typed student answers in the file
+ * jul/2021 (amd) - Added semantic validation of the student's solution.
+ * jun/2021 (amd) - Added support for typed student answers in the file
  *                  "template.ml". Managed to get rid of all the technical
  *                  in the file "template.ml". Many improvements in the
- *                  implementation..
+ *                  implementation.
  * mar/2021 (amd, rm) - Initial version
  *)
 
@@ -57,7 +58,8 @@ sig
 	val setOCamlFlatDir : string -> unit
 	val setLearnOCamlDir : string -> unit
 	val setLearnOCamlTarget : string -> unit
-	val processAnswer : Model.model -> Exercise.exercise -> (string * int) list
+	val processAnswer : Model.model
+					-> Exercise.exercise -> (string * int) list
 	val decl2json : string -> JSon.t
 	val generateExerciseDir : JSon.t -> JSon.t -> bool -> unit
 end
@@ -99,7 +101,7 @@ struct
 		targetDir () ^ "/" ^ fileName
 	
 	let adjust txt =
-		Util.stripHead txt 2
+		Util.stripHead txt
  
 	let createTargetDir () =
 		ignore (Sys.command ("mkdir -p " ^ targetDir ()) )
@@ -115,6 +117,12 @@ struct
 	(* ----- Utility functions ----- *)
 	let processUnitTest m expected w =
 			(Util.word2str w, expected, m#accept w = expected)
+
+	let semanticValidation (m: Model.model) =
+		m#errors
+
+	let convertSemanticValidationResult mesg =
+			(mesg, 0)
 
 	let processUnitTests (m: Model.model) (e: Exercise.exercise) =
 		let open Exercise in
@@ -143,12 +151,31 @@ struct
 		let points = if passed then 3 else 0 in
 			("Property \"" ^ property ^ "\" " ^ pf, points)
 
+	let finalResult0 res =
+		[("###  Checking for semantic errors...", -999)]
+		@ res
+		@ [("### Errors found", -999)]
+
+	let finalResult1 res1 res2 =
+		[]
+		@ [("###  Checking for semantic errors...", -999)]
+		@ [("### Checking unit tests...", -999)]
+		@ res1
+		@ [("### Checking properties...", -999)]
+		@ res2
+		@ [("### Done", -999)]
+
 	let processAnswer (m: Model.model) (e: Exercise.exercise) =
-		let unitTestsResults = processUnitTests m e in
-		let propertyResults = processProperties m e in
-			List.map convertUnitTestResult unitTestsResults
-			@
-			List.map convertPropertyResult propertyResults
+		let semanticValidationResults = semanticValidation m in
+		let res0 = List.map convertSemanticValidationResult semanticValidationResults in
+		if res0 <> [] then
+			finalResult0 res0
+		else
+			let unitTestsResults = processUnitTests m e in
+			let res1 = List.map convertUnitTestResult unitTestsResults in
+			let propertyResults = processProperties m e in
+			let res2 = List.map convertPropertyResult propertyResults in
+				finalResult1 res1 res2
 
 	let kind2designation kind =
 		match kind with
@@ -174,7 +201,7 @@ struct
 			let c = String.index_from s b '=' in
 			let kind = String.trim (String.sub s (a+1) (b-a-1)) in
 			let ocamlExp = String.sub s (c+1) (String.length s -c-1) in
-			let jExp = JSon.from_string_oon ocamlExp in
+			let jExp = JSon.parseOon ocamlExp in
 			JSon.show jExp;
 			let mainJSon = completeJSon kind jExp in
 			let jHead = Entity.toJSon (Entity.dummyId (kind2designation kind)) in
@@ -192,8 +219,8 @@ struct
 		<h3> %s </h3>
 		<p> %s </p>
 	|zzz}
-		(JSon.field_string exercise "description")
-		(JSon.field_string exercise "problem")
+		(JSon.fieldString exercise "description")
+		(JSon.fieldString exercise "problem")
 	
 	let generateFile_Descr (exercise: JSon.t) =
 		let text = contents exercise in
@@ -212,7 +239,7 @@ struct
 		  "title"              : "%s"
 		}
 	|zzz}
-		(JSon.field_string exercise "description")
+		(JSon.fieldString exercise "description")
 	
 	let generateFile_Meta (exercise: JSon.t) =
 		let text = contents exercise in
@@ -228,8 +255,12 @@ struct
 		let greetings = "Hello world!"
 	|zzz}
 
-	let generateFile_Prelude () =
+	let generateFile_Prelude_old () =
 		let text = contents in
+			createTargetFile fileName text
+
+	let generateFile_Prelude (solution: Model.model) =
+		let text = solution#xTypeDeclString in
 			createTargetFile fileName text
 	
 	(* ----- FILE prepare.ml ----- *)
@@ -249,7 +280,7 @@ struct
 	{zzz|
 		let solution = {| %s |}
 	|zzz}
-		(JSon.to_string_n 2 solution#toJSon)
+		(JSon.toStringN 2 solution#toJSon)
 
 	let contents (solution: Model.model) =
 		solution#toDisplayString "solution"
@@ -268,20 +299,17 @@ struct
 	let contentsJSon (solution: Model.model) =
 		Printf.sprintf
 	{zzz|
-
 		(* Write your solution below, by using the provided example as a template *)
 
 		let solution = {| %s |}
 	|zzz}
-		(JSon.to_string_n 2 solution#example)
+		(JSon.toStringN 2 solution#example)
 
 	let contents (solution: Model.model) =
 		Printf.sprintf
 	{zzz|
-
 		(* Write your solution below, by using the provided example as a template *)
-		%s
-	|zzz}
+		%s|zzz}
 		((PolyModel.json2model solution#example)#toDisplayString "solution")
 
 	let generateFile_Template (solution: Model.model) useJSon =
@@ -301,7 +329,7 @@ struct
 	{zzz|
 		let exercise = {| %s |}
 	|zzz}
-		(JSon.to_string_n 2 exercise)
+		(JSon.toStringN 2 exercise)
 
 	let handleAnswerPartJSon =
 		Printf.sprintf
@@ -322,7 +350,7 @@ struct
 	{zzz|
 		let handleAnswer (): Learnocaml_report.t =
 			test_variable_property
-				[%%ty: %s.tx]
+				[%%ty: %s]
 				"solution"
 				(fun solution ->
 					checkAnswer
@@ -331,7 +359,7 @@ struct
 						(new Exercise.exercise (Arg.Text exercise))
 				)
 	|zzz}
-	solution#moduleName
+	solution#xTypeName
 	solution#moduleName
 	solution#moduleName
 		
@@ -342,10 +370,13 @@ struct
 		open Report
 		%s
 		let convertResult (diagnostic, points) =
-			Message (
-				[Text diagnostic],
-				if points > 0 then Success points else Failure
-			)
+			match points with
+			| _ when points > 0 ->
+				Message ([Text diagnostic], Success points)
+			| -999 ->
+				Message ([Break; Text diagnostic], Informative)
+			| _ ->
+				Message ([Text diagnostic], Failure)
 		
 		let checkAnswer (m: Model.model) (e: Exercise.exercise) =
 			let res = LearnOCaml.processAnswer m e in
@@ -368,6 +399,8 @@ struct
 		let text = contents ex hs
 		in
 			createTargetFile fileName text	
+
+	(* ----- generateExerciseDir ----- *)
 	
 	let generateExerciseDir exercise solution useJSon =
 		let solution: Model.model = PolyModel.json2model solution in
@@ -375,7 +408,7 @@ struct
 			createTargetDir ();
 			generateFile_Descr exercise;
 			generateFile_Meta exercise;
-			generateFile_Prelude ();
+			generateFile_Prelude solution;
 			generateFile_Prepare ();
 			generateFile_Solution solution useJSon;
 			generateFile_Template solution useJSon;
@@ -401,7 +434,7 @@ struct
 	let test1 () =
 		prepare();
 		let exercise = Examples.jsonExample "exer_astar" in
-		let solution = Examples.jsonExample "re_simple" in
+		let solution = Examples.jsonExample "re_astar" in
 			LearnOCaml.generateExerciseDir exercise solution false
 	
 	let fe_colors = {| {
@@ -413,14 +446,14 @@ struct
 
 	let test2 () =
 		prepare();
-		let exercise = Examples.jsonExample "exer_astar" in
-		let solution = Examples.jsonExample "cfg_simple" in
+		let exercise = Examples.jsonExample "exer_balanced" in
+		let solution = Examples.jsonExample "cfg_balanced" in
 			LearnOCaml.generateExerciseDir exercise solution false
 			
 	let test3 () =
 		prepare();
 		let exercise = Examples.jsonExample "exer_astar" in
-		let solution = JSon.from_string fe_colors in
+		let solution = JSon.parse fe_colors in
 			LearnOCaml.generateExerciseDir exercise solution false
 
 	let decl = {|
@@ -431,12 +464,12 @@ struct
 			initialState = "START";
 			transitions = [("START", 'a', "START")];
 			acceptStates = ["START"]
-		} |};;
+		} |}
 		
 	let decl2 = {|
 		let solution: RegularExpression.tx =
 			"z*"
-	|};;
+	|}
 		
 	let decl3 = {|
 		let solution: ContextFreeGrammar.tx =
@@ -447,12 +480,12 @@ struct
 			rules = [	"S -> 1S0 | P";
 						"P -> 0P1 | ~" ]
 		}
-	|};;
+	|}
 		
 	let decl4 = {|
 		let solution: FiniteEnumeration.tx =
 			["A"; "B"; "C"; "D"; "E"]
-	|};;
+	|}
 
 	let test4 () =
 		let j = LearnOCaml.decl2json decl3 in
@@ -461,7 +494,7 @@ struct
 	let runAll =
 		if active then (
 			Util.header "LearnOCamlTests";
-			test4 ()
+			test0 ()
 		)
 end
 

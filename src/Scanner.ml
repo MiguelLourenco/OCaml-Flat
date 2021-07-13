@@ -32,12 +32,12 @@
 
 module type ScannerSig =
 sig
-	val start : string -> string -> string list ref
+	val start : string -> string -> unit
 	val skip : unit -> unit
 	val curr : unit -> char
 	val getToken : (char -> bool) -> string
-	val expecting : string -> char -> 'a -> 'a
-	val stop : unit -> unit
+	val expecting : string -> char -> 'a
+	val invalid : string -> 'a
 end
 
 module Scanner : ScannerSig =
@@ -52,9 +52,7 @@ struct
 		inputString := s;
 		inputStringLength := String.length s;
 		inputStringPosition := 0;
-		let log = Error.start () in
-			Error.onlyFirst ();
-			log
+		Error.start ()
 
 	let isInside () =
 		!inputStringPosition < !inputStringLength
@@ -80,13 +78,13 @@ struct
 			skipWhile good;
 			String.sub !inputString start (!inputStringPosition - start)
 
-	let expecting exp got z =
+	let expecting exp got =
 		let g = if got = ' ' then "'EOF'" else "'" ^ Char.escaped got ^ "'" in
 		let mesg ="Expecting " ^ exp ^ ", got " ^ g in
-			Error.error !parserName mesg z
+			Error.error !parserName mesg ();
+			raise Not_found
 
-	let stop () =
-		Error.show !parserName "input";
-		Error.stop ()
-
+	let invalid str =
+		Error.error !parserName str ();
+		raise Not_found
 end

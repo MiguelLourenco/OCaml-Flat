@@ -3,10 +3,10 @@ LIB = $(LIBDIR)/OCamlFlat
 VERSION = 1.0
 COMP = ocamlc
 FLAGS =
-NAMES =		OCamlFlat Error Util Set Scanner JSon RegExpSyntax			\
-			CFGSyntax BasicTypes Configuration Examples					\
-			Entity Exercise Model FiniteAutomaton RegularExpression		\
-			ContextFreeGrammar FiniteEnumeration PolyModel TopLevel		\
+NAMES =		OCamlFlat Configuration Error Util Set Scanner JSon		\
+			BasicTypes RegExpSyntax CFGSyntax BasicTypes Examples	\
+			Entity Exercise Model FiniteAutomaton RegularExpression	\
+			ContextFreeGrammar FiniteEnumeration PolyModel TopLevel	\
 			LearnOCaml Tests PreOpen
 
 define SRCFILES
@@ -26,6 +26,30 @@ $(LIBDIR):
 .PHONY: run
 run: $(LIB).ml
 	rlwrap ocaml -init $(LIB).ml
+
+.PHONY: edit
+edit:
+	geany OCamlFlat.geany
+
+.PHONY: dist
+dist: $(LIBDIR)
+	rm -rf OCamlFlat
+	mkdir OCamlFlat
+	cp -a LICENCE Makefile README.md OCamlFlat.geany src OCamlFlat
+	tar cpvz OCamlFlat > $(LIBDIR)/OCamlFlat.tgz
+	rm -rf OCamlFlat
+
+.PHONY: git0
+git0:
+	git status
+
+.PHONY: git1
+git1:
+	git diff
+
+.PHONY: git2
+git2:
+	git add src/*
 
 # run some unit tests
 .PHONY: test

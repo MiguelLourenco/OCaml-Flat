@@ -37,7 +37,7 @@ sig
 	val strings2words : string list -> char list list
 	val words2strings : char list list -> string list
 	val stripChars : string -> string -> string
-	val stripHead : string -> int -> string
+	val stripHead : string -> string
 	val char2DisplayString : char -> string
 	val string2DisplayString : string -> string
 	val charList2DisplayString : char list -> string
@@ -50,7 +50,7 @@ sig
 	val indexOf : 'a -> 'a list -> int
 	val fixedPoint : ('a -> 'a) -> 'a -> 'a
 	
-	val load_file : string -> string
+	val loadFile : string -> string
 	val print : string list -> unit
 	val println : string list -> unit
 	val header : string -> unit
@@ -103,20 +103,29 @@ struct
 			done;
 			Bytes.to_string (Bytes.sub res 0 !j)
 
-	let stripHead s n =
+	let stripHead s =
 		let len = String.length s in
+		let n = ref 0 in
+		let skip = ref (-1) in
 		let j = ref 0 in
-		let skip = ref n in
 		let res = Bytes.create len in
 			for i = 1 to len-1 do
-				if !skip > 0 && s.[i] = '\t' then
-					skip := !skip - 1
-				else begin
-					if s.[i] = '\n' then
-						skip := n
-					else ();
-					Bytes.set res !j s.[i];
-					j := !j + 1
+				if !skip < 0 then begin
+					if s.[i] = '\t' then
+						n := !n + 1
+					else
+						skip := 0
+				end;
+				if !skip >= 0 then begin
+					if !skip > 0 && s.[i] = '\t' then
+						skip := !skip - 1
+					else begin
+						if s.[i] = '\n' then
+							skip := !n
+						else ();
+						Bytes.set res !j s.[i];
+						j := !j + 1
+					end
 				end
 			done;
 			Bytes.to_string (Bytes.sub res 0 !j)
@@ -170,7 +179,7 @@ struct
 			else fixedPoint f next
 			
 			
-	let load_file (filename: string): string =
+	let loadFile (filename: string): string =
 		try
 			let ic = open_in filename in
 			let n = in_channel_length ic in
@@ -242,7 +251,7 @@ struct
 	let active = false
 
 	let test0 () =
-		Util.println [Util.load_file "examples/fa_abc.json"]
+		Util.println [Util.loadFile "examples/fa_abc.json"]
 
 	let test1 () =
 		let a = Util.word2str ['e';'r';'t'] in

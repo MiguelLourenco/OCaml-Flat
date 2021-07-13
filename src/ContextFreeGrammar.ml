@@ -18,6 +18,7 @@
 (*
  * ChangeLog:
  *
+ * jul/2021 (amd) - Improved Learn-OCaml support and error handling.
  * jun/2021 (amd) - Added checks for '~' in the #validate method.
  * may/2021 (amd) - Added support for an extern representation.
  * jan/2021 (amd) - Module in an independent file and some cleanup.
@@ -34,24 +35,19 @@
 module type ContextFreeGrammarSig =
 sig
 	type cfgTree = Leaf of char | Root of char * cfgTree list
-
 	type tx = {
 		alphabet : symbol list;
-		variables : symbol list;
+		variables : variable list;
 		initial : variable;
-		rules : CFGSyntax.rule list
+		rules : string list
 	}
-
 	type t = {
 		alphabet : symbols;
 		variables : variables;
 		initial : variable;
 		rules : CFGSyntax.rules
 	}
-
 	val modelDesignation : string
-	val register : tx -> (string -> bool)
-
 	class model :
 		(t,tx) Arg.alternatives ->
 			object
@@ -62,7 +58,6 @@ sig
 				method representation: t
 				method representationx : tx
 				method validate : unit
-				method example : JSon.t
 
 				method tracing: unit
 				method isRegular: bool
@@ -75,8 +70,12 @@ sig
 				method checkExerciseFailures : Exercise.exercise
 											-> words * words * properties
 											
+			(* Learn-OCaml support *)
 				method moduleName : string
+				method xTypeName : string
+				method xTypeDeclString : string
 				method toDisplayString : string -> string
+				method example : JSon.t
 			end
 end
 
@@ -88,9 +87,9 @@ struct
 
 	type tx = {
 		alphabet : symbol list;
-		variables : symbol list;
+		variables : variable list;
 		initial : variable;
-		rules : CFGSyntax.rule list
+		rules : string list
 	}
 
 	type t = {
@@ -106,22 +105,29 @@ struct
 		alphabet = Set.make cfg.alphabet;
 		variables = Set.make cfg.variables;
 		initial = cfg.initial;
-		rules = Set.make cfg.rules  
+		rules = CFGSyntax.parse (Set.make cfg.rules)
 	}
 
 	let externalize (cfg: t): tx = {
 		alphabet = Set.toList cfg.alphabet;
 		variables = Set.toList cfg.variables;
 		initial = cfg.initial;
-		rules = Set.toList cfg.rules
+		rules = CFGSyntax.toStringList cfg.rules
 	}
 
-	let fromJSon j = {
-		alphabet = JSon.field_char_set j "alphabet";
-		variables = JSon.field_char_set j "variables";
-		initial = (JSon.field_string j "initial").[0];
-		rules = CFGSyntax.parse (Set.make (JSon.field_string_list j "rules"));
-	}
+	let fromJSon j =
+		if j = JSon.JNull || not (JSon.hasField j "kind") then {
+			alphabet = Set.empty;
+			variables = Set.make ['_'];
+			initial = '_';
+			rules = Set.empty;
+		}
+		else {
+			alphabet = JSon.fieldCharSet j "alphabet";
+			variables = JSon.fieldCharSet j "variables";
+			initial = (JSon.fieldString j "initial").[0];
+			rules = CFGSyntax.parse (Set.make (JSon.fieldStringList j "rules"));
+		}
 	
 	let ruleToJSon {head=h; body=b} =
 		let open JSon in
@@ -184,13 +190,13 @@ struct
 		let ws = Set.filter (fun w -> not (hasVar w)) ws in
 			Set.map (fun w -> removeEpsi w) ws
 
-	let displayHeader (name: string) (moduleName: string) =
+	let displayHeader (name: string) (xTypeName: string) =
 		if name = "" then
 			""
 		else
-			("let " ^ name ^ ": " ^ moduleName ^ ".tx =\n\t\t")
+			("let " ^ name ^ ": " ^ xTypeName ^ " =\n\t\t")
 
-	let toDisplayString (name: string) (moduleName: string) (repx: tx): string =
+	let toDisplayString (name: string) (xTypeName: string) (repx: tx): string =
 		Printf.sprintf {zzz|
 		%s{
 			alphabet = %s;
@@ -199,11 +205,11 @@ struct
 			rules = %s
 		}
 		|zzz}
-			(displayHeader name moduleName)
+			(displayHeader name xTypeName)
 			(Util.charList2DisplayString repx.alphabet)
 			(Util.charList2DisplayString repx.variables)
 			(Util.char2DisplayString repx.initial)
-			(Util.stringList2DisplayString (CFGSyntax.toStringList (Set.make repx.rules)))
+			(Util.stringList2DisplayString repx.rules)
 
 	class model (arg: (t,tx) Arg.alternatives) =
 		object(self) inherit Model.model arg modelDesignation as super
@@ -227,10 +233,10 @@ struct
 
 			method validate: unit = (
 
-				(* the alphabet must not contain "~" *)
+				(* the alphabet must not contain epsilon ('~') *)
 				let isValidAlphabet = not (Set.belongs epsilon representation.alphabet) in
 
-				(* the variables must not contain "~" *)
+				(* the variables must not contain epsilon ('~') *)
 				let isValidVariables = not (Set.belongs epsilon representation.variables) in
 
 				let isIntersectionValid = (Set.inter representation.variables representation.alphabet) = Set.empty in
@@ -251,44 +257,33 @@ struct
 				
 				if not isValidAlphabet then
 					Error.error self#id.Entity.name
-						"the alphabet contains epsilon, and it should not" ()
+						"The alphabet contains epsilon '~', and it should not" ()
 				;
 
 				if not isValidVariables then
 					Error.error self#id.Entity.name
-						"the variables contains epsilon, and it should not" ()
+						"The variables contain epsilon '~', and it should not" ()
 				;
 
 				if not isIntersectionValid then
 					Error.error self#id.Entity.name
-						"intersection between alphabet and variables is not empty" ()
+						"The intersection between the alphabet and the variables is not empty" ()
 				;
 
 				if not isInitialValid then
 					Error.error (Util.ch2str representation.initial)
-						"initial does not belong to the set of all variables" ()
+						"Symbol initial does not belong to the set of all variables" ()
 				;
 
 				if not areRuleHeadsValid then
 					Error.error self#id.Entity.name
-						"not all rule heads belong to the set of all variables" ()
+						"Some rule heads do not belong to the set of all variables" ()
 				;
 
 				if not areRuleBodiesValid then
 					Error.error self#id.Entity.name
-						"not all rule bodies have valid characters" ()
+						"Some rule bodies have invalid characters" ()
 				)
-
-			method example : JSon.t = 
-				JSon.from_string {| {
-					kind : "context free grammar",
-					description : "this is an example",
-					name : "cfg_simple",
-					alphabet : ["0", "1"],
-					variables : ["S", "X"],
-					initial : "S",
-					rules : [ "S -> 1S0 | X", "X -> 0X1 | ~" ]
-				} |}
 
 			method tracing: unit = ()
 
@@ -532,24 +527,45 @@ struct
 
 					cleanNonWords res vs
 
-
 			method checkProperty (prop: string) =
 				match prop with
 					| "regular" -> self#isRegular
 					| "context free grammar" -> true
 					| _ -> super#checkProperty prop
 
+		(* Learn-OCaml support *)
 			method moduleName =
 				"ContextFreeGrammar"
 
-			method toDisplayString (name: string): string =
-				toDisplayString name self#moduleName self#representationx
+			method xTypeName =
+				"contextFreeGrammar"
 
+			method xTypeDeclString : string = {|
+				type symbol = char
+				type variable = char
+				type rule = string
+				type contextFreeGrammar = {
+					alphabet : symbol list;
+					variables : variable list;
+					initial : variable;
+					rules : rule list
+				}
+				|}
+
+			method toDisplayString (name: string): string =
+				toDisplayString name self#xTypeName self#representationx
+
+			method example : JSon.t =
+				JSon.parse {| {
+					kind : "context free grammar",
+					description : "this is an example",
+					name : "cfg_simple",
+					alphabet : ["0", "1"],
+					variables : ["S", "X"],
+					initial : "S",
+					rules : [ "S -> 1S0 | X", "X -> 0X1 | ~" ]
+				} |}
 		end
-		
-		let register solution =
-			let model = new model (Arg.RepresentationX solution) in
-				(fun x -> model#accept (Util.str2word x))
 end
 
 module ContextFreeGrammarTests: sig end =
@@ -560,6 +576,12 @@ struct
 		let m = new ContextFreeGrammar.model (Arg.Predef "cfg_simple") in
 		let j = m#toJSon in
 			JSon.show j
+
+	let test1 () =
+		let m = new ContextFreeGrammar.model (Arg.Predef "cfg_balanced") in
+		let e = new Exercise.exercise (Arg.Predef "exer_balanced") in
+		let result = m#checkExercise e in
+			if result then Util.print ["it works"] else Util.print ["it does not work"]
 
 	let testRegular () =
 		let m = new ContextFreeGrammar.model (Arg.Predef "cfg_simple") in
@@ -586,10 +608,7 @@ struct
 	let runAll =
 		if active then (
 			Util.header "ContextFreeGrammarTests";
-			testRegular ();
-			testAcc ();
-			testTrace ();
-			testGen ()
+			test1 ();
 		)
 end
 

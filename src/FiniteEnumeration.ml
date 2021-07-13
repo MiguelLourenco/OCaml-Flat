@@ -18,6 +18,7 @@
 (*
  * ChangeLog:
  *
+ * jul/2021 (amd) - Improved Learn-OCaml support and error handling.
  * may/2021 (amd) - Added support for an extern representation.
  * mar/2021 (amd) - New module
  *)
@@ -43,9 +44,12 @@ struct
 		Util.words2strings (Set.toList fe)
 
 	let fromJSon j =
-		let strings = JSon.field_string_set j "words" in
-		let words = Set.map Util.str2word strings in
-			words
+		if j = JSon.JNull || not (JSon.hasField j "kind") then
+			Set.empty
+		else
+			let strings = JSon.fieldStringSet j "words" in
+			let words = Set.map Util.str2word strings in
+				words
 	
 	let toJSon (rep: t): JSon.t =
 		let open JSon in
@@ -54,17 +58,17 @@ struct
 			("words", JList (List.map (fun s -> JString s) strings))
 		]
 
-	let displayHeader (name: string) (moduleName: string) =
+	let displayHeader (name: string) (xTypeName: string) =
 		if name = "" then
 			""
 		else
-			("let " ^ name ^ ": " ^ moduleName ^ ".tx =\n\t\t")
+			("let " ^ name ^ ": " ^ xTypeName ^ " =\n\t\t")
 
-	let toDisplayString (name: string) (moduleName: string) (repx: tx): string =
+	let toDisplayString (name: string) (xTypeName: string) (repx: tx): string =
 		Printf.sprintf {zzz|
 		%s	%s
 		|zzz}
-			(displayHeader name moduleName)
+			(displayHeader name xTypeName)
 			(Util.stringList2DisplayString repx)
 
 	class model (arg: (t,tx) Arg.alternatives) =
@@ -89,14 +93,6 @@ struct
 
 			method validate: unit = ()
 
-			method example : JSon.t = 
-				JSon.from_string {| {
-					kind : "finite enumeration",
-					description : "this is an example",
-					name : "example",
-					words : ["Red", "Yellow", "Blue"]
-				} |}
-
 			method tracing : unit = ()
 
 			method accept (w: word): bool =
@@ -110,17 +106,38 @@ struct
 					| "finite enumeration" -> true
 					| _ -> super#checkProperty prop
 
+		(* Learn-OCaml support *)
 			method moduleName =
 				"FiniteEnumeration"
 
+			method xTypeName =
+				"finiteEnumeration"
+
+			method xTypeDeclString : string = {| {
+				type symbol = char
+				type state = string
+				type transition = state * symbol * state
+
+				type finiteAutomaton = {
+					alphabet : symbol list;
+					states : state list;
+					initialState : state;
+					transitions : transition list;
+					acceptStates : state list
+				} |}
+
 			method toDisplayString (name: string): string =
-				toDisplayString name self#moduleName self#representationx
+				toDisplayString name self#xTypeName self#representationx
+
+			method example : JSon.t =
+				JSon.parse {| {
+					kind : "finite enumeration",
+					description : "this is an example",
+					name : "example",
+					words : ["Red", "Yellow", "Blue"]
+				} |}
 
 		end
-		
-		let register solution =
-			let model = new model (Arg.RepresentationX solution) in
-				(fun x -> model#accept (Util.str2word x))
 end
 
 module FiniteEnumerationTests : sig end =

@@ -49,7 +49,7 @@ end
 module PolyModel : PolyModelSig =
 struct
 	let json2model (j: JSon.t): Model.model =	(* will build any model *)
-		let kind = JSon.field_string j "kind" in
+		let kind = JSon.fieldString j "kind" in
 			if FiniteAutomaton.modelDesignation = kind then
 				(new FiniteAutomaton.model (Arg.JSon j) :> Model.model)
 			else if RegularExpression.modelDesignation = kind then
@@ -62,10 +62,10 @@ struct
 				(new FiniteAutomaton.model (Arg.JSon j) :> Model.model)
 
 	let text2model (text: string): Model.model =	(* will build any model *)
-		json2model (JSon.from_string text)
+		json2model (JSon.parse text)
 
 	let file2model (filename: string): Model.model =	(* will load any model *)
-		json2model (JSon.from_file filename)
+		json2model (JSon.fromFile filename)
 
 	let example2model (name: string): Model.model =	(* will load any model *)
 		text2model (Examples.example name)

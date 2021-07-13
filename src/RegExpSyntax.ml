@@ -18,15 +18,14 @@
 (*
  * ChangeLog:
  *
+ * jul/2021 (amd) - Now this module is client of the Scanner module and
+ *                  the erros are registered using the Error module.
  * jan/2021 (amd) - Module in an independent file.
  * jun/2019 (amd) - Initial version, inside the big file "OCamlFlatSupport.ml".
  *)
 
 (*
- * Description: Very simple parser for regular expressions.
- *
- * TODO: Register the errors using the Error module. Turn into a client
- * of the Scanner module.
+ * Description: A very simple parser for regular expressions.
  *)
 
 module type RegExpSyntaxSig =
@@ -46,16 +45,16 @@ end
 
 module RegExpSyntax : RegExpSyntaxSig =
 struct
-		(* Grammar:
-				E -> E + E | E E | E* | c | (E) | ()
+	(*	Grammar:
+			E -> E + E | E E | E* | c | (E) | ()
 
-			Grammar with priorities:
-				E -> T | T + E
-				T -> F | F T
-				F -> A | A*
-				A -> P | c
-				P -> (E) | ()
-		*)
+		Grammar with priorities:
+			E -> T | T + E
+			T -> F | F T
+			F -> A | A*
+			A -> P | c
+			P -> (E) | ()
+	*)
 	type t =
 		| Plus of t * t
 		| Seq of t * t
@@ -63,62 +62,49 @@ struct
 		| Symb of char
 		| Empty
 		| Zero
-	;;
 
-	let inputString = ref ""
-	let inputStringLength = ref 0
-	let inputStringPosition = ref 0
+	open Scanner
 
-	let skip () =
-		inputStringPosition := !inputStringPosition + 1
-
-	let rec curr () =
-		if !inputStringPosition >= !inputStringLength then
-			' '
-		else if String.get !inputString !inputStringPosition = ' ' then
-			( skip(); curr() )
-		else
-			String.get !inputString !inputStringPosition
-
-	let rec parse_exp () =
-		let t = parse_term () in
+	let rec parseExp () =
+		let t = parseTerm () in
 			match curr() with
-				| '+' -> skip(); Plus (t, parse_exp ())
+				| '+' -> skip(); Plus (t, parseExp ())
 				| _ -> t
 
-	and parse_term () =
-		let f = parse_factor () in
+	and parseTerm () =
+		let f = parseFactor () in
 			match curr() with
 				| '+' | ')' | ' ' -> f
-				| _ -> Seq (f, parse_term ())
+				| _ -> Seq (f, parseTerm ())
 
-	and parse_factor () =
-		let a = parse_atom () in
+	and parseFactor () =
+		let a = parseAtom () in
 			match curr() with
 				| '*' -> skip(); (Star a)
 				| _ -> a
 
-	and parse_atom () =
+	and parseAtom () =
 		match curr() with
 			| '~' -> skip(); Empty
 			| '!' -> skip(); Zero
-			| '(' -> skip(); parse_parentised ()
-			| '+' | '*' -> failwith "Invalid use of wildcard\n"
-			| ' ' -> failwith "Premature end of expression\n"
+			| '(' -> skip(); parseParentised ()
+			| '+' | '*' -> invalid "Invalid use of wildcard\n"
+			| ' ' -> invalid "Premature end of expression\n"
 			| c -> skip(); (Symb c)
 
-	and parse_parentised () =
-		let e = parse_exp () in (
+	and parseParentised () =
+		let e = parseExp () in (
 			match curr() with
 				| ')' -> skip(); e
-				| _ -> failwith "Right-parenthesis expected\n"
+				| _ -> invalid "Right-parenthesis expected\n"
 		)
 
 	let parse s =
-		inputString := s;
-		inputStringLength := String.length s;
-		inputStringPosition := 0;
-		parse_exp ()
+		Scanner.start "RegExpSyntax" s;
+		try
+			parseExp ()
+		with Not_found ->
+			Zero
 
 	let rec toStringN n re =
 		match re with

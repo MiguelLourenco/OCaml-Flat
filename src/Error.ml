@@ -18,6 +18,7 @@
 (*
  * ChangeLog:
  *
+ * jul/2021 (amd) - Simplified module.
  * jan/2021 (amd) - Module in an independent file.
  * jun/2019 (amd) - Initial version, inside the big file "OCamlFlatSupport.ml".
  *)
@@ -31,44 +32,48 @@
 
 module type ErrorSig =
 sig
-	val start : unit -> string list ref
-	val stop : unit -> unit
-	val onlyFirst : unit -> unit
+	val start : unit -> unit
 	val error : string -> string -> 'a -> 'a
+	val get: unit -> string list
 	val show : string -> string -> unit
 end
 
 module Error : ErrorSig =
 struct
-	type t = string list ref
+	let showImmediately =
+		false (* for debugging *)
 
-	let sink: t = ref []
-	let err: t ref = ref sink
-	let onlyOne: bool ref = ref false
+	let errors: string list ref =
+		ref []
 
-	let start () =	(* setup a log of errors *)
-		let r = ref [] in
-			err := r;
-			r		(* returns a new error log *)
+	let start () =
+		errors := []
 
-	let stop () = (* disables logging *)
-		sink := [];
-		err := sink
+	let makeMesg (culprit: string) (str: string) =
+		if culprit = "_" then "" ^ str
+		else "\"" ^ culprit ^ "\": " ^ str
 
-	let onlyFirst () =
-		onlyOne := true
+	let printMesg (mesg: string) =
+		print_string "	";
+		print_string mesg;
+		print_string "\n"
+
+	let debugMesg (mesg: string) =
+		if showImmediately && Configuration.diagnosticsOn () then
+			printMesg ("==> "^mesg)
 
 	let error (culprit: string) (str: string) (res: 'a): 'a =
-		let r = !err in
-		if !r = [] || not !onlyOne then
-			r := !r@[culprit ^ ": " ^ str];
-		res
+		let mesg = makeMesg culprit str in
+			errors := !errors @ [mesg];
+			debugMesg mesg;
+			res
+
+	let get (): string list =
+		!errors
 
 	let show (expectedKind: string) (name: string): unit =
-		let r = !err in
-			if !r = [] then ()
-			else (
-				print_string (expectedKind^" "^name^ " has errors:\n");
-				List.iter (fun m -> print_string ("	"^m^"\n")) !r
-			)
+		if !errors <> [] && Configuration.diagnosticsOn () then begin
+			print_string (expectedKind^" \""^name^ "\" has errors:\n");
+			List.iter printMesg (!errors)
+		end
 end

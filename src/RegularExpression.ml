@@ -18,6 +18,7 @@
 (*
  * ChangeLog:
  *
+ * jul/2021 (amd) - Improved Learn-OCaml support and error handling.
  * may/2021 (amd) - Added support for an extern representation.
  * jan/2021 (amd) - Module in an independent file and some cleanup.
  * dec/2019 (jg) - Main functionalities.
@@ -33,15 +34,11 @@
 module type RegularExpressionSig =
 sig	
 	type tx = string
-	
 	type t = RegExpSyntax.t
-
 	type reTree =
 	| Fail
 	| Tree of word * t * reTree list
-
 	val modelDesignation : string
-	val register : tx -> (string -> bool)
 	class model :
 		(t,tx) Arg.alternatives ->
 			object
@@ -52,7 +49,6 @@ sig
 				method representation : t
 				method representationx : tx
 				method validate : unit
-				method example : JSon.t
 
 				method accept : word -> bool
 				method allTrees : word -> unit
@@ -69,8 +65,12 @@ sig
 				method checkExerciseFailures : Exercise.exercise
 											-> words * words * properties
 											
+			(* Learn-OCaml support *)
 				method moduleName : string
+				method xTypeName : string
+				method xTypeDeclString : string
 				method toDisplayString : string -> string
+				method example : JSon.t
 			end
 end
 
@@ -95,8 +95,11 @@ struct
 		RegExpSyntax.toString re
 
 	let fromJSon j =
-		let re = JSon.field_string j "re" in
-			RegExpSyntax.parse re
+		if j = JSon.JNull || not (JSon.hasField j "kind") then
+			RegExpSyntax.Zero
+		else
+			let re = JSon.fieldString j "re" in
+				RegExpSyntax.parse re
 
 	let toJSon (rep: t): JSon.t =
 		let open JSon in
@@ -107,17 +110,17 @@ struct
 	(* auxiliary functions *)
 	let seqConcat aset bset = Set.flatMap (fun s1 -> Set.map (fun s2 -> s1@s2) bset) aset
 
-	let displayHeader (name: string) (moduleName: string) =
+	let displayHeader (name: string) (xTypeName: string) =
 		if name = "" then
 			""
 		else
-			("let " ^ name ^ ": " ^ moduleName ^ ".tx =\n\t\t")
+			("let " ^ name ^ ": " ^ xTypeName ^ " =\n\t\t")
 
-	let toDisplayString (name: string) (moduleName: string) (repx: tx): string =
+	let toDisplayString (name: string) (xTypeName: string) (repx: tx): string =
 		Printf.sprintf {zzz|
 		%s	%s
 		|zzz}
-			(displayHeader name moduleName)
+			(displayHeader name xTypeName)
 			(Util.string2DisplayString repx)
 
 	class model (arg: (t,tx) Arg.alternatives) =
@@ -160,14 +163,6 @@ struct
 				()
 				*)
 			)
-
-			method example : JSon.t = 
-				JSon.from_string {| {
-					kind : "regular expression",
-					description : "this is a simple example",
-					name : "example",
-					re : "a*+(a+bc)*"
-				} |}
 
 			method tracing: unit = ()
 
@@ -289,7 +284,7 @@ struct
 
 						| Star(re) ->
 							if w = [] then
-								[Tree (['~'], rep, [])]
+								[Tree ([epsilon], rep, [])]
 							else
 								(let wps = Set.remove ([],w) (partition w) in
 								let wpl = Set.toList wps in
@@ -307,7 +302,7 @@ struct
 
 						| Empty ->
 							if w = [] then
-								[Tree (['~'], rep, [])]
+								[Tree ([epsilon], rep, [])]
 							else
 								[Tree (w, rep, [Fail])]
 
@@ -474,17 +469,28 @@ struct
 					| "regular expression" -> true
 					| _ -> super#checkProperty prop
 
+		(* Learn-OCaml support *)
 			method moduleName =
 				"RegularExpression"
 
-			method toDisplayString (name: string): string =
-				toDisplayString name self#moduleName self#representationx
+			method xTypeName =
+				"regularExpression"
 
+			method xTypeDeclString : string = {|
+				type regularExpression = string
+				|}
+
+			method toDisplayString (name: string): string =
+				toDisplayString name self#xTypeName self#representationx
+
+			method example : JSon.t =
+				JSon.parse {| {
+					kind : "regular expression",
+					description : "this is a simple example",
+					name : "example",
+					re : "w*+(w+yz)*"
+				} |}
 		end
-		
-		let register solution =
-			let model = new model (Arg.RepresentationX solution) in
-				(fun x -> model#accept (Util.str2word x))
 end
 
 
@@ -618,7 +624,7 @@ struct
 			kind : "regular expression",
 			description : "this is an example",
 			name : "re_more",
-			re : "**"
+			re : "a*"
 	} |}
 				
 	let testMore () =

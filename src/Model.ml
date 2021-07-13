@@ -18,6 +18,7 @@
 (*
  * ChangeLog:
  *
+ * jul/2021 (amd) - Improved Learn-OCaml support.
  * mar/2021 (amd) - Added support for semantic constrains (properties) in
  *                  the exercices, in this class and in all its subclasses.
  * jan/2021 (amd) - Module in an independent file.
@@ -41,7 +42,6 @@ sig
 				method handleErrors : unit
 				method toJSon: JSon.t
 				method virtual validate : unit
-				method virtual example : JSon.t
 
 				method virtual accept : word -> bool
 				method virtual generate : int -> words
@@ -51,8 +51,13 @@ sig
 				method checkExercise : Exercise.exercise -> bool
 				method checkExerciseFailures : Exercise.exercise
 											-> words * words * properties
+
+			(* Learn-OCaml support *)
 				method virtual moduleName : string
-				method virtual toDisplayString: string -> string
+				method virtual xTypeName : string
+				method virtual xTypeDeclString : string
+				method virtual toDisplayString : string -> string
+				method virtual example : JSon.t
 			end
 end
 
@@ -65,7 +70,6 @@ open Exercise
 		object(self) inherit Entity.entity arg expectedKind
 		
 			method virtual validate: unit
-			method virtual example : JSon.t
 			method virtual accept: word -> bool
 			method virtual generate: int -> words
 			method virtual tracing: unit
@@ -93,9 +97,12 @@ open Exercise
 					Set.filter (fun w -> not (self#checkProperty w)) rep.properties
 				)
 
+		(* Learn-OCaml support *)
 			method virtual moduleName: string
-				
+			method virtual xTypeName: string
+			method virtual xTypeDeclString : string
 			method virtual toDisplayString: string -> string
+			method virtual example : JSon.t
 	end
 
 end

@@ -18,6 +18,7 @@
 (*
  * ChangeLog:
  *
+ * jul/2021 (amd) - Improved error handling.
  * mar/2021 (amd) - Added semantic constrains (properties) to the exercices.
  * jan/2021 (amd) - Module in an independent file.
  * set/2019 (amd) - Initial version, inside the big file "OCamlFlat.ml"
@@ -26,9 +27,6 @@
 (*
  * Description: Support to pedagogical exercises. The solutions are validated
  * using unit tests.
- *
- * TODO: Improve with support for the validation of extra properties,
- * beyond unit testing.
  *)
 
 module type ExerciseSig =
@@ -66,12 +64,19 @@ struct
 		properties : string set
 	}
 	
-	let fromJSon j = {
-		problem = JSon.field_string j "problem";
-		inside = Set.map Util.str2word (JSon.field_string_set j "inside");
-		outside = Set.map Util.str2word (JSon.field_string_set j "outside");
-		properties = JSon.field_string_set j "properties"
-	}
+	let fromJSon j =
+		if j = JSon.JNull || not (JSon.hasField j "kind") then {
+			problem = "_";
+			inside = Set.empty;
+			outside = Set.empty;
+			properties = Set.empty
+		}
+		else {
+			problem = JSon.fieldString j "problem";
+			inside = Set.map Util.str2word (JSon.fieldStringSet j "inside");
+			outside = Set.map Util.str2word (JSon.fieldStringSet j "outside");
+			properties = JSon.fieldStringSet j "properties"
+		}
 	
 	let toJSon (rep: t): JSon.t =
 		let open JSon in

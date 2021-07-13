@@ -18,15 +18,14 @@
 (*
  * ChangeLog:
  *
+ * jul/2021 (amd) - Now this module is client of the Scanner module and
+ *                  the erros are registered using the Error module.
  * jan/2021 (amd) - Module in an independent file.
  * dec/2019 (amd) - Initial version, inside the big file "OCamlFlatSupport.ml".
  *)
 
 (*
- * Description: Very simple parser for regular expressions.
- *
- * TODO: Register the errors using the Error module. Turn into a client
- * of the Scanner module.
+ * Description: A very simple parser for CFG syntax.
  *)
 
 module type CFGSyntaxSig =
@@ -45,36 +44,23 @@ struct
 	type rule = { head : char; body : char list; }
 	type rules = rule Set.t
 
-	let inputString = ref ""
-	let inputStringLength = ref 0
-	let inputStringPosition = ref 0
+	open Scanner
 
 	let isWhite c =
 		List.mem c [' '; '\t']
 
-	let skip () =
-		inputStringPosition := !inputStringPosition + 1
-
-	let rec curr () =
-		if !inputStringPosition >= !inputStringLength then
-			' '
-		else if isWhite (String.get !inputString !inputStringPosition) then
-			( skip(); curr() )
-		else
-			String.get !inputString !inputStringPosition
-
 	let rec parseHead () =
 		match curr() with
-			| ' ' -> failwith "Premature end of expression\n"
+			| ' ' -> invalid "Premature end of expression\n"
 			| c -> skip() ; c
 
 	let rec parseNeck () =
 		match curr() with
-			| ' ' -> failwith "Premature end of expression\n"
+			| ' ' -> invalid "Premature end of expression\n"
 			| '-' -> skip();
 					if curr() = '>' then skip()
-					else failwith "Bad neck\n"
-			| _ -> failwith "Bad neck\n"
+					else invalid "Bad neck\n"
+			| _ -> invalid "Bad neck\n"
 
 	let rec parseBody () =
 		match curr() with
@@ -83,27 +69,30 @@ struct
 			| '~' -> skip(); parseBody ()
 			| c -> skip();
 					match parseBody () with
-						| [] -> failwith "never happens"
+						| [] -> invalid "never happens"
 						| x::xs -> (c::x)::xs
 
 	let parseLine line =
-		if String.trim line = "" then Set.empty
+		if String.trim line = "" then
+			Set.empty
 		else (
-			inputString := line;
-			inputStringLength := String.length line;
-			inputStringPosition := 0;
-			let h = parseHead () in
-			let () = parseNeck () in
-			let bs = Set.make (parseBody ()) in
-				Set.map (fun b -> {head=h; body=b}) bs
+			Scanner.start "CFGSyntax" line;
+			try
+				let h = parseHead () in
+				let _ = parseNeck () in
+				let bs = Set.make (parseBody ()) in
+					Set.map (fun b -> {head=h; body=b}) bs
+			with Not_found ->
+				Set.empty
 		)
 
 	let parse rs =
 		Set.flatMap parseLine rs
 
-
 	let toString1 r =
-		let full = [r.head; ' '; '-'; '>' ; ' '] @ r.body in
+		let h = r.head in
+		let b = if r.body = [] then [epsilon] else r.body in
+		let full = [h; ' '; '-'; '>' ; ' '] @ b in
 			String.concat "" (List.map (String.make 1) full)
 
 	let toString rs =

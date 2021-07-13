@@ -18,6 +18,7 @@
 (*
  * ChangeLog:
  *
+ * jul/2021 (amd) - Improved error handling.
  * may/2021 (amd) - Added support for an extern representation.
  * may/2021 (amd) - Centralized the handling of kind/description/name.
  * feb/2021 (amd) - Added the alternative Predef.
@@ -44,9 +45,9 @@ struct
 	let fromAlternatives alt =
 		match alt with
 			| JSon j -> j
-			| Text str -> JSon.from_string str
-			| File str -> JSon.from_file str
-			| Predef str -> JSon.from_string (Examples.example str)
+			| Text str -> JSon.parse str
+			| File str -> JSon.fromFile str
+			| Predef str -> JSon.parse (Examples.example str)
 			| _ -> JSon.JNull
 end
 
@@ -59,11 +60,20 @@ struct
 		name : string
 	}
 
-	let fromJSon (j: JSon.t): t =
-		let open JSon in {
-			kind = field_string j "kind";
-			description = field_string j "description";
-			name = field_string j "name"
+	let dummyId (k: string): t = {
+		kind = k;
+		description = "_";
+		name = "_"
+	}
+
+	let fromJSon (j: JSon.t) (expectedKind: string): t =
+		let open JSon in
+		if j = JNull then
+			dummyId expectedKind
+		else {
+			kind = fieldString j "kind";
+			description = fieldString j "description";
+			name = fieldString j "name"
 		}
 		
 	let toJSon (rep: t): JSon.t =
@@ -73,27 +83,22 @@ struct
 			("description", JString rep.description);
 			("name", JString rep.name)
 		]
-	
-	let dummyId (k: string): t = {
-		kind = k;
-		description = "_";
-		name = "_"
-	}
-		
+
 	class virtual entity (arg: ('r,'x) Arg.alternatives) (expectedKind: string) =
 		object(self)
-			
-			val errors = Error.start ()
 		
 			val id: t =
+				Error.start ();
 				match arg with
 				| Arg.Representation r -> dummyId expectedKind
 				| Arg.RepresentationX r -> dummyId expectedKind
-				| _ -> fromJSon (Arg.fromAlternatives arg)
-		
+				| _ -> fromJSon (Arg.fromAlternatives arg) 	expectedKind
+
+			val errors = ref []
+
 			method id: t =
 				id
-			
+
 			method errors : string list =
 				!errors
 			
@@ -106,9 +111,8 @@ struct
 				if id.kind <> expectedKind then
 					Error.error id.kind "Wrong kind" ();
 				self#validate;
-				if Configuration.diagnosticsOn () then
-					Error.show expectedKind id.name;
-				Error.stop ()
+				errors := Error.get ();
+				Error.show expectedKind id.name
 			)
 			
 			method moduleName =

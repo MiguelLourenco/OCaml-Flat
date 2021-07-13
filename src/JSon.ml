@@ -37,25 +37,23 @@ sig
 		| JAssoc of (string * t) list
 		| JList of t list
 
-	val from_string : string -> t
-	val from_string_oon : string -> t
-	val from_file : string -> t
+	val parse : string -> t
+	val parseOon : string -> t
+	val fromFile : string -> t
 
-	val to_string_n : int -> t -> string
-	val to_string : t -> string
+	val toStringN : int -> t -> string
+	val toString : t -> string
 	val show : t -> unit
 	val remove : t -> string list -> t
 
-	val field_string : t -> string -> string
-	val as_string : t -> string -> string
-	val field_string_list : t -> string -> string list
-	val field_string_set : t -> string -> string Set.t
-	val as_char : t -> string -> char
-	val field_char_list : t -> string -> char list
-	val field_char_set : t -> string -> char Set.t
-	val as_string_char_string : t -> string -> string * char * string
-	val field_triples_list : t -> string -> (string * char * string) list
-	val field_triples_set : t -> string -> (string * char * string) Set.t
+	val hasField : t -> string -> bool
+	val fieldString : t -> string -> string
+	val fieldStringList : t -> string -> string list
+	val fieldStringSet : t -> string -> string Set.t
+	val fieldCharList : t -> string -> char list
+	val fieldCharSet : t -> string -> char Set.t
+	val fieldTriplesList : t -> string -> (string * char * string) list
+	val fieldTriplesSet : t -> string -> (string * char * string) Set.t
 	val append: t -> t -> t
 end
 
@@ -76,7 +74,7 @@ struct
 			let tk = getToken (fun c -> c <> '"') in
 				match curr () with
 					| '"' -> skip(); tk
-					| err -> expecting "closing '\"'" err ""
+					| err -> expecting "closing '\"'" err
 
 		let parseWord () =
 			getToken (fun c -> 'a' <= c && c <= 'z'
@@ -88,32 +86,32 @@ struct
 			match curr() with
 				| '"' -> parseString ()
 				| 'a'..'z' -> parseWord ()
-				| err -> expecting "'STRING' or '}'" err ""
+				| err -> expecting "'STRING' or '}'" err
 
 		let checkEOF () =
 			match curr() with
 				| ' ' -> ()
-				| err -> expecting "'EOF'" err ()
+				| err -> expecting "'EOF'" err
 
 
 		let rec parsePair () =
 			let label = parseLabel () in
 				match curr() with
 					| ':' -> skip(); (label, parseJSon ())
-					| err -> expecting "':'" err ("", JNull)
+					| err -> expecting "':'" err
 
 		and parseAssocCont () =
 			let p = parsePair () in
 				match curr() with
 					| ',' -> skip(); p::parseAssocCont ()
 					| '}' -> skip(); [p]
-					| err -> expecting "',' or '}'" err []
+					| err -> expecting "',' or '}'" err
 
 		and parseAssoc () =
 			skip();	(* skip { *)
 			match curr() with
 				| '}' -> skip(); []
-				| ' ' -> expecting "'}' or 'STRING'" ' ' []
+				| ' ' -> expecting "'}' or 'STRING'" ' '
 				| _ -> parseAssocCont ()
 
 		and parseListCont () =
@@ -121,13 +119,13 @@ struct
 				match curr() with
 					| ',' -> skip(); j::parseListCont ()
 					| ']' -> skip(); [j]
-					| err -> expecting "',' or ']'" err []
+					| err -> expecting "',' or ']'" err
 
 		and parseList () =
 			skip();	(* skip [ *)
 			match curr() with
 				| ']' -> skip(); []
-				| ' ' -> expecting "']' or 'JSON'" ' ' []
+				| ' ' -> expecting "']' or 'JSON'" ' '
 				| _ -> parseListCont ()
 
 		and parseJSon s =
@@ -135,14 +133,15 @@ struct
 				| '"' -> JString (parseString ())
 				| '[' -> JList (parseList ())
 				| '{' -> JAssoc (parseAssoc ())
-				| err -> expecting "'JSON'" err JNull
-				
-		let from_string s =
-			let log = Scanner.start "JSon" s in
+				| err -> expecting "'JSON'" err
+
+		let parse s =
+			Scanner.start "JSon" s;
+			try
 				let j = parseJSon () in
-					checkEOF ();
-					Scanner.stop ();
-					if !log = [] then j else JNull
+					checkEOF (); j
+			with Not_found ->
+				JNull
 	end
 
 	module OCamlValueParsing = (* OCaml value syntax *)
@@ -154,7 +153,7 @@ struct
 			let tk = getToken (fun c -> c <> delim) in
 				match curr () with
 					| x when x = delim -> skip(); tk
-					| err -> expecting "closing '\"'" err ""
+					| err -> expecting "closing '\"'" err
 
 		let parseWord () =
 			getToken (fun c -> 'a' <= c && c <= 'z'
@@ -166,32 +165,32 @@ struct
 			match curr() with
 				| '"' -> parseString ('"')
 				| 'a'..'z' -> parseWord ()
-				| err -> expecting "'STRING' or '}'" err ""
+				| err -> expecting "'STRING' or '}'" err
 
 		let checkEOF () =
 			match curr() with
 				| ' ' -> ()
-				| err -> expecting "'EOF'" err ()
+				| err -> expecting "'EOF'" err
 
 
 		let rec parsePair () =
 			let label = parseLabel () in
 				match curr() with
 					| '=' -> skip(); (label, parseOon ())
-					| err -> expecting "'='" err ("", JNull)
+					| err -> expecting "'='" err
 
 		and parseAssocCont () =
 			let p = parsePair () in
 				match curr() with
 					| ';' -> skip(); p::parseAssocCont ()
 					| '}' -> skip(); [p]
-					| err -> expecting "';' or '}'" err []
+					| err -> expecting "';' or '}'" err
 
 		and parseAssoc () =
 			skip();	(* skip { *)
 			match curr() with
 				| '}' -> skip(); []
-				| ' ' -> expecting "'}' or 'STRING'" ' ' []
+				| ' ' -> expecting "'}' or 'STRING'" ' '
 				| _ -> parseAssocCont ()
 
 		and parseListCont () =
@@ -199,13 +198,13 @@ struct
 				match curr() with
 					| ';' -> skip(); j::parseListCont ()
 					| ']' -> skip(); [j]
-					| err -> expecting "';' or ']'" err []
+					| err -> expecting "';' or ']'" err
 
 		and parseList () =
 			skip();	(* skip [ *)
 			match curr() with
 				| ']' -> skip(); []
-				| ' ' -> expecting "']' or 'Oon'" ' ' []
+				| ' ' -> expecting "']' or 'Oon'" ' '
 				| _ -> parseListCont ()
 
 		and parseTupleCont () =
@@ -213,13 +212,13 @@ struct
 				match curr() with
 					| ',' -> skip(); j::parseTupleCont ()
 					| ')' -> skip(); [j]
-					| err -> expecting "',' or ')'" err []
+					| err -> expecting "',' or ')'" err
 
 		and parseTuple () =
 			skip();	(* skip [ *)
 			match curr() with
 				| ')' -> skip(); []
-				| ' ' -> expecting "')' or 'Oon'" ' ' []
+				| ' ' -> expecting "')' or 'Oon'" ' '
 				| _ -> parseTupleCont ()
 
 		and parseOon s =
@@ -229,24 +228,25 @@ struct
 				| '[' -> JList (parseList ())
 				| '(' -> JList (parseTuple ())
 				| '{' -> JAssoc (parseAssoc ())
-				| err -> expecting "'OON'" err JNull
+				| err -> expecting "'OON'" err
 				
-		let from_string s =
-			let log = Scanner.start "OON" s in
+		let parse s =
+			Scanner.start "OON" s;
+			try
 				let j = parseOon () in
-					checkEOF ();
-					Scanner.stop ();
-					if !log = [] then j else JNull
+					checkEOF (); j
+			with Not_found ->
+				JNull
 	end
 
-	let from_string s =
-		JSonParsing.from_string s
+	let parse s =
+		JSonParsing.parse s
 
-	let from_string_oon s =
-		OCamlValueParsing.from_string s
+	let parseOon s =
+		OCamlValueParsing.parse s
 
-	let from_file filename =
-		from_string (Util.load_file filename)
+	let fromFile filename =
+		parse (Util.loadFile filename)
 
 (* PRETTY PRINT *)
 	let tab n =
@@ -312,14 +312,14 @@ struct
 						^ tab tab2 ^ "}"
 					)
 
-	let to_string_n n j =
+	let toStringN n j =
 		textual 0 n j
 
-	let to_string j =
-		to_string_n 0 j
+	let toString j =
+		toStringN 0 j
 
 	let show (j: t) =
-		Util.println [to_string j]
+		Util.println [toString j]
 
 	let remove (j: t) r =
 		match j with
@@ -327,12 +327,20 @@ struct
 			JAssoc (List.filter (fun (a,_) -> not (List.mem a r)) l)
 		| _ ->
 			j
-			
-
 
 
 (* MEMBERSHIP *)
-	let isMember name j =
+	let hasField j name =
+		match j with
+		| JAssoc obj -> (
+				try
+					ignore (List.assoc name obj); true
+				with Not_found -> false
+			)
+		| _ ->
+			false
+
+	let getField name j =
 		match j with
 		| JAssoc obj -> (
 				try
@@ -340,58 +348,59 @@ struct
 				with Not_found -> JNull
 			)
 		| _ ->
-			failwith ("Can't get member '" ^ name ^ "' of association type ")
+			JNull
 
 (* MORE *)
 
 	let error = Error.error
 
-	let field_string (j: t) (field: string) =
-		match j |> isMember field with
+	let fieldString (j: t) (field: string) =
+		match j |> getField field with
 		| JNull -> error field "Missing field" "#"
 		| JString s -> s
 		| _ -> error field "Expected string" "#"
 
-	let as_string (j: t) (field: string) =
+	let asString (j: t) (field: string) =
 		match j with
 		| JString s -> s
 		| _ -> error field "Expected string" "#"
 
-	let field_string_list (j: t) (field: string) =
-		match j |> isMember field with
+	let fieldStringList (j: t) (field: string) =
+		match j |> getField field with
 		| JNull -> error field "Missing field" []
-		| JList l -> List.map (fun j -> as_string j field) l
+		| JList l -> List.map (fun j -> asString j field) l
 		| _ -> error field "Expected string list" []
 
-	let field_string_set (j: t) (field: string) =
-		Set.validate (field_string_list j field) field
+	let fieldStringSet (j: t) (field: string) =
+		Set.validate (fieldStringList j field) field
 
-	let as_char (j: t) (field: string) =
+	let asChar (j: t) (field: string) =
 		match j with
 		| JString s when String.length s = 1 -> String.get s 0
 		| _ -> error field "Expected char" '#'
 
-	let field_char_list (j: t) (field: string) =
-		match j |> isMember field with
+	let fieldCharList (j: t) (field: string) =
+		match j |> getField field with
 		| JNull -> error field "Missing field" []
-		| JList l -> List.map (fun j -> as_char j field) l
+		| JList l -> List.map (fun j -> asChar j field) l
 		| _ -> error field "Expected char list" []
 
-	let field_char_set (j: t) (field: string) =
-		Set.validate (field_char_list j field) field
+	let fieldCharSet (j: t) (field: string) =
+		Set.validate (fieldCharList j field) field
 
-	let as_string_char_string (j: t) (field: string) =
+	let asStringCharString (j: t) (field: string) =
 		match j with
-		| JList [a; b; c] -> (as_string a field, as_char b field, as_string c field)
+		| JList [a; b; c] -> (asString a field, asChar b field, asString c field)
 		| _ -> error field "Malformed triple" ("#",'#',"#")
 
-	let field_triples_list (j: t) (field: string) =
-		match j |> isMember field with
-		| JList l -> List.map (fun j -> as_string_char_string j field) l
+	let fieldTriplesList (j: t) (field: string) =
+		match j |> getField field with
+		| JNull -> error field "Missing field" []
+		| JList l -> List.map (fun j -> asStringCharString j field) l
 		| _ -> []
 
-	let field_triples_set (j: t) (field: string) =
-		Set.validate (field_triples_list j field) field
+	let fieldTriplesSet (j: t) (field: string) =
+		Set.validate (fieldTriplesList j field) field
 	
 	let append j1 j2 =
 		match j1, j2 with
@@ -412,16 +421,14 @@ struct
 		},
 		age: "33",
 		hobbies: [ "44", "55" ]
-	} |};;
+	} |}
 	
 	let jsonSample2 = {| "aa" |}
 	
 	let test0 () =
-		let json = JSon.from_string jsonSample in
-		let json2 = JSon.from_string jsonSample2 in
+		let json = JSon.parse jsonSample in
+		let json2 = JSon.parse jsonSample2 in
 			JSon.show json; JSon.show json2
-	
-	
 	
 	let oonSample = {| {
 		alphabet = ['a';'b'];
@@ -429,20 +436,20 @@ struct
 		initialState = "START";
 		transitions = [("START", 'a', "START"); ("START", 'a', "START")];
 		acceptStates = ["START"]
-	} |};;
+	} |}
 	
-	let oonSample2 = {| "z*" |};;
+	let oonSample2 = {| "z*" |}
 
-	let oonSample3 = {| ("START", ["ee"], "yu") |};;
+	let oonSample3 = {| ("START", ["ee"], "yu") |}
 
 	let test1 () =
-		let oon = JSon.from_string_oon oonSample in
-		let oon2 = JSon.from_string_oon oonSample2 in
-		let oon3 = JSon.from_string_oon oonSample3 in
+		let oon = JSon.parseOon oonSample in
+		let oon2 = JSon.parseOon oonSample2 in
+		let oon3 = JSon.parseOon oonSample3 in
 			JSon.show oon; JSon.show oon2; JSon.show oon3
 
 	let test () =
-		let oon2 = JSon.from_string_oon oonSample2 in
+		let oon2 = JSon.parseOon oonSample2 in
 			JSon.show oon2
 
 	let runAll =
