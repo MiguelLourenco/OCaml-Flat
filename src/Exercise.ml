@@ -29,7 +29,7 @@
  * using unit tests.
  *)
 
-module type ExerciseSig
+module type ExerciseSig =
 sig
 	type t = {
 		problem : string;
