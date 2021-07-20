@@ -179,30 +179,33 @@ struct
 
 	let kind2designation kind =
 		match kind with
-		| "FiniteAutomaton" -> FiniteAutomaton.modelDesignation
-		| "RegularExpression" -> RegularExpression.modelDesignation
-		| "ContextFreeGrammar" -> ContextFreeGrammar.modelDesignation
-		| "FiniteEnumeration" -> FiniteEnumeration.modelDesignation
-		| _ -> kind
+		| "finiteAutomaton" | "FiniteAutomaton.tx" ->
+			FiniteAutomaton.modelDesignation
+		| "regularExpression" | "RegularExpression.tx" ->
+			RegularExpression.modelDesignation
+		| "contextFreeGrammar" | "ContextFreeGrammar.tx" ->
+			ContextFreeGrammar.modelDesignation
+		| "finiteEnumeration" | "FiniteEnumeration.tx" ->
+			FiniteEnumeration.modelDesignation
+		| _ ->
+			"*** invalid ***"
 
 	let completeJSon kind j  =
 		match kind with
-		| "RegularExpression" ->
+		| "regularExpression" | "RegularExpression.tx" ->
 			JSon.JAssoc [("re", j)]
-		| "FiniteEnumeration" ->
+		| "finiteEnumeration" | "FiniteEnumeration.tx" ->
 			JSon.JAssoc [("words", j)]
-		| _ -> j
+		| _ ->
+			j
 
 	let decl2json s =
-		Util.show s;
 		try
 			let a = String.index_from s 0 ':' in
-			let b = String.index_from s a '.' in
-			let c = String.index_from s b '=' in
+			let b = String.index_from s a '=' in
 			let kind = String.trim (String.sub s (a+1) (b-a-1)) in
-			let ocamlExp = String.sub s (c+1) (String.length s -c-1) in
+			let ocamlExp = String.sub s (b+1) (String.length s -b-1) in
 			let jExp = JSon.parseOon ocamlExp in
-			JSon.show jExp;
 			let mainJSon = completeJSon kind jExp in
 			let jHead = Entity.toJSon (Entity.dummyId (kind2designation kind)) in
 				JSon.append jHead mainJSon
@@ -418,11 +421,16 @@ end
 
 module LearnOCamlTests =
 struct
-	let active = false
+	let active = true
 
 	let prepare () =
 		LearnOCaml.setOCamlFlatDir "~/work/OCamlFlat";
 		LearnOCaml.setLearnOCamlDir "~/work/OCamlFlat/lo";
+		LearnOCaml.setLearnOCamlTarget "default"
+
+	let prepare () =
+		LearnOCaml.setOCamlFlatDir "~/work/OCamlFlat";
+		LearnOCaml.setLearnOCamlDir "~/work/learn/my-learn-ocaml-repository/exercises";
 		LearnOCaml.setLearnOCamlTarget "default"
 	
 	let test0 () =
@@ -457,7 +465,7 @@ struct
 			LearnOCaml.generateExerciseDir exercise solution false
 
 	let decl = {|
-		let solution: FiniteAutomaton.tx =
+		let solution: finiteAutomaton =
 		{
 			alphabet = ['a'];
 			states = ["START"];
@@ -488,7 +496,7 @@ struct
 	|}
 
 	let test4 () =
-		let j = LearnOCaml.decl2json decl3 in
+		let j = LearnOCaml.decl2json decl4 in
 			JSon.show j
 	
 	let runAll =

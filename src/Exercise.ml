@@ -19,7 +19,7 @@
  * ChangeLog:
  *
  * jul/2021 (amd) - Improved error handling.
- * mar/2021 (amd) - Added semantic constrains (properties) to the exercices.
+ * mar/2021 (amd) - Added semantic constrains (properties) to the exercises.
  * jan/2021 (amd) - Module in an independent file.
  * set/2019 (amd) - Initial version, inside the big file "OCamlFlat.ml"
  *)
@@ -29,7 +29,7 @@
  * using unit tests.
  *)
 
-module type ExerciseSig =
+module type ExerciseSig
 sig
 	type t = {
 		problem : string;
@@ -94,7 +94,7 @@ struct
 		]
 
 	class exercise (arg: (t,t) Arg.alternatives ) =
-		object(self) inherit Entity.entity arg "exercice" as super
+		object(self) inherit Entity.entity arg "exercise" as super
 
 			val representation: t =
 				match arg with

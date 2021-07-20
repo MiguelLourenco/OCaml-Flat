@@ -4,7 +4,7 @@ VERSION = 1.0
 COMP = ocamlc
 FLAGS =
 NAMES =		OCamlFlat Configuration Error Util Set Scanner JSon		\
-			BasicTypes RegExpSyntax CFGSyntax BasicTypes Examples	\
+			BasicTypes RegExpSyntax CFGSyntax Examples	\
 			Entity Exercise Model FiniteAutomaton RegularExpression	\
 			ContextFreeGrammar FiniteEnumeration PolyModel TopLevel	\
 			LearnOCaml Tests PreOpen
@@ -29,7 +29,7 @@ run: $(LIB).ml
 
 .PHONY: edit
 edit:
-	geany OCamlFlat.geany
+	geany OCamlFlat.geany src/*
 
 .PHONY: dist
 dist: $(LIBDIR)
@@ -49,7 +49,15 @@ git1:
 
 .PHONY: git2
 git2:
-	git add src/*
+	git add src/* Makefile
+
+.PHONY: git3
+git3:
+	git commit
+
+.PHONY: git4
+git4:
+	git push origin master
 
 # run some unit tests
 .PHONY: test

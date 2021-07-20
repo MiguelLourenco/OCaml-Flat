@@ -20,7 +20,7 @@
  *
  * jul/2021 (amd) - Improved Learn-OCaml support.
  * mar/2021 (amd) - Added support for semantic constrains (properties) in
- *                  the exercices, in this class and in all its subclasses.
+ *                  the exercises, in this class and in all its subclasses.
  * jan/2021 (amd) - Module in an independent file.
  * jun/2019 (amd) - Initial version, inside the big file "OCamlFlat.ml".
  *)

@@ -202,7 +202,7 @@ struct
 		} |}
 
 	let exer_balanced = {| {
-			kind : "exercice",
+			kind : "exercise",
 			description : "Language of balanced square bracket parentheses",
 			name : "exer_balanced",
 			problem : "CFG than generated the language of balanced parentheses",
@@ -212,7 +212,7 @@ struct
 		} |}
 
 	let exer_astar = {| {
-			kind : "exercice",
+			kind : "exercise",
 			description : "Exercise astar",
 			name : "exer_astar",
 			problem : "Convert the regular expression a* to finite automaton.",
@@ -222,7 +222,7 @@ struct
 		} |}
 
 	let exer_abcd = {| {
-			kind : "exercice",
+			kind : "exercise",
 			description : "this is an example",
 			name : "exer_abcd",
 			problem : "Convert the regular expression (a+b)*(c+d) to finite automaton.",
@@ -232,7 +232,7 @@ struct
 		} |}
 
 	let exer_ab = {| {
-			kind : "exercice",
+			kind : "exercise",
 			description : "this is an example",
 			name : "exer_ab",
 			problem : "Convert the regular expression ab*+ba* to finite automaton.",
@@ -242,7 +242,7 @@ struct
 		} |}
 
 	let exer_re2fa = {| {
-			kind : "exercice",
+			kind : "exercise",
 			description : "this is an example",
 			name : "exer_re2fa",
 			problem : "Converta o autómato finito com alfabeto: [x, y, z], estados: [S, T, V], estado inicial: S, transições [[S, x, S], [S, y, T], [S, z, V], [T, x, T], [T, z, T], [T, y, V], [V, x, T]], e estados finais: [V] em expressão regular.",
@@ -252,7 +252,7 @@ struct
 		} |}
 
 	let exer_readwrite = {| {
-			kind : "exercice",
+			kind : "exercise",
 			description : "this is an example",
 			name : "exer_readwrite",
 			problem : "open,close,read,write",

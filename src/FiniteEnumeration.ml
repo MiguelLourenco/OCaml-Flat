@@ -152,7 +152,7 @@ struct
 	} |}
 	
 	let exer_colors = {| {
-		kind : "exercice",
+		kind : "exercise",
 		description : "this is an example",
 		name : "exer_colors",
 		problem : "Colors of length 3",
