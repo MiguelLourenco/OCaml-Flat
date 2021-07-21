@@ -1410,7 +1410,7 @@ struct
 	*)
 	
 	let runAll =
-		if active then (
+		if Util.testing(active) then (
 			Util.header "FiniteAutomatonTests";
 			testExercice ();
 			test0 ();

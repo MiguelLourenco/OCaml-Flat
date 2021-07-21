@@ -141,7 +141,7 @@ module RegExpSyntaxTests = struct
 			RegExpSyntax.show re
 
 	let runAll =
-		if active then (
+		if Util.testing(active) then (
 			Util.header "RegExpSyntaxTests";
 			test0 ();
 			test1 ()

@@ -453,7 +453,7 @@ struct
 			JSon.show oon2
 
 	let runAll =
-		if active then (
+		if Util.testing(active) then (
 			Util.header "JSonTests";
 			test ()
 		)

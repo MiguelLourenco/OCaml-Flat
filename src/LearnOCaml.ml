@@ -428,7 +428,7 @@ struct
 		LearnOCaml.setLearnOCamlDir "~/work/OCamlFlat/lo";
 		LearnOCaml.setLearnOCamlTarget "default"
 
-	let prepare () =
+	let prepare0 () =
 		LearnOCaml.setOCamlFlatDir "~/work/OCamlFlat";
 		LearnOCaml.setLearnOCamlDir "~/work/learn/my-learn-ocaml-repository/exercises";
 		LearnOCaml.setLearnOCamlTarget "default"
@@ -498,9 +498,9 @@ struct
 	let test4 () =
 		let j = LearnOCaml.decl2json decl4 in
 			JSon.show j
-	
+ 
 	let runAll =
-		if active then (
+		if Util.testing(active) then (
 			Util.header "LearnOCamlTests";
 			test0 ()
 		)

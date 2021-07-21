@@ -125,7 +125,7 @@ struct
 			CFGSyntax.show rules
 
 	let runAll =
-		if active then (
+		if Util.testing(active) then (
 			Util.header "CFGSyntaxTests";
 			Util.header "test0";
 			test0 ();

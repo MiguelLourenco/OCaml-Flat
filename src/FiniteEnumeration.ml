@@ -170,7 +170,7 @@ struct
 			Util.printStrings (Set.toList props)
 		
 	let runAll =
-		if active then (
+		if Util.testing(active) then (
 			Util.header "FiniteEnumerationTests";
 			test0 ();
 

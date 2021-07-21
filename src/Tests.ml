@@ -28,20 +28,18 @@
  * tests in several modules and this stuff needs to be reviewed.
  *)
 
-module type TestsSig =
-sig
-	val tests: unit -> unit
-end
-
-module Tests : TestsSig =
+module Tests : sig end =
 struct
 	open TopLevel
 	open Examples
+	
+	let active = true
 
 	let test1 () =
 		let a = fa_predef "dfa_1" in
 			Util.println [if fa_accept a "ab" then "OK" else "ERROR"]
 
-	let tests () =
-		test1 ()
+	let runAll =
+		if Util.testing(active) then
+			test1 ()
 end

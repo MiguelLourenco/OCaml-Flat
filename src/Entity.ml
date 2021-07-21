@@ -128,7 +128,7 @@ struct
 		()
 
 	let runAll =
-		if active then
+		if Util.testing(active) then
 			Util.header "EntityTests";
 			test0 ()
 end

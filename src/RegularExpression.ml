@@ -632,7 +632,7 @@ struct
 			re#allTrees ['a';'a']
 
 	let runAll =
-		if active then (
+		if Util.testing(active) then (
 			Util.header "RegularExpressionTests";
 			testMore ()
 		)

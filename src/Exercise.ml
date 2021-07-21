@@ -129,7 +129,7 @@ struct
 			JSon.show je
 
 	let runAll =
-		if active then (
+		if Util.testing(active) then (
 			Util.header "ExercicesTests";
 			test0 ()
 		)

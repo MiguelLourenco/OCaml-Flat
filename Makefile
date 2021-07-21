@@ -49,7 +49,8 @@ git1:
 
 .PHONY: git2
 git2:
-	git add src/* Makefile
+	git add src/* Makefile OCamlFlat.geany
+	git status
 
 .PHONY: git3
 git3:
@@ -59,13 +60,9 @@ git3:
 git4:
 	git push origin master
 
-# run some unit tests
 .PHONY: test
 test: $(LIB).ml
-	cp $(LIB).ml test.ml
-	echo ";; tests ();;  #quit;;" >> test.ml
-	ocaml -init test.ml
-	@rm test.ml
+	TESTING=true ocaml $(LIB).ml
 
 .PHONY: types
 types: $(LIB).ml

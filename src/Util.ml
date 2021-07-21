@@ -62,7 +62,7 @@ sig
 	val show : string -> unit
 
 	val handleHomeDir : string -> string
-
+	val testing : bool -> bool
 end
 
 module Util : UtilSig =
@@ -244,6 +244,9 @@ struct
 				else
 					"/home/" ^ String.sub s 1 (n - 1)
 			else s
+			
+	let testing(active) =
+		active && try ignore (Sys.getenv("TESTING")); true with _ -> false	
 end
 
 module UtilTests =
@@ -259,7 +262,7 @@ struct
 			Util.println [a; b]
 
 	let runAll : unit =
-		if active then (
+		if Util.testing(active) then (
 			Util.header "UtilTests";
 			test0 ();
 			test1 ()

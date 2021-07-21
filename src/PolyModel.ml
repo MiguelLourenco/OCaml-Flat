@@ -543,9 +543,8 @@ struct
 		let res = cfg2re m in
 			JSon.show res#toJSon
 
-
 	let runAll =
-		if active then (
+		if Util.testing(active) then (
 			Util.header "PolyModelTests";
 			testSimplify ()
 		)

@@ -606,7 +606,7 @@ struct
 			Util.printWords (Set.toList ws)
 
 	let runAll =
-		if active then (
+		if Util.testing(active) then (
 			Util.header "ContextFreeGrammarTests";
 			test1 ();
 		)
