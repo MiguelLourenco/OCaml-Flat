@@ -152,13 +152,13 @@ struct
 			("Property \"" ^ property ^ "\" " ^ pf, points)
 
 	let finalResult0 res =
-		[("###  Checking for semantic errors...", -999)]
+		[("###  Checking for static semantic errors...", -999)]
 		@ res
 		@ [("### Errors found", -999)]
 
 	let finalResult1 res1 res2 =
 		[]
-		@ [("###  Checking for semantic errors...", -999)]
+		@ [("###  Checking for static semantic errors...", -999)]
 		@ [("### Checking unit tests...", -999)]
 		@ res1
 		@ [("### Checking properties...", -999)]
@@ -218,10 +218,10 @@ struct
 	
 	let contents (exercise: JSon.t) =
 		Printf.sprintf
-	{zzz|
+	{ooo_descr_html_ooo|
 		<h3> %s </h3>
 		<p> %s </p>
-	|zzz}
+	|ooo_descr_html_ooo}
 		(JSon.fieldString exercise "description")
 		(JSon.fieldString exercise "problem")
 	
@@ -235,13 +235,13 @@ struct
 		
 	let contents (exercise: JSon.t) =
 		Printf.sprintf
-	{zzz|
+	{ooo_meta_json_ooo|
 		{ "learnocaml_version" : "1",
 		  "kind"               : "exercise",
 		  "stars"              : 0,
 		  "title"              : "%s"
 		}
-	|zzz}
+	|ooo_meta_json_ooo}
 		(JSon.fieldString exercise "description")
 	
 	let generateFile_Meta (exercise: JSon.t) =
@@ -252,14 +252,14 @@ struct
 	let fileName =
 		"prelude.ml"
 
-	let contents =
-	{zzz|
+	let contents_old =
+	{ooo_prelude_ml_ooo|
 		(* Some code is loaded in the toplevel before your code. *)
 		let greetings = "Hello world!"
-	|zzz}
+	|ooo_prelude_ml_ooo}
 
 	let generateFile_Prelude_old () =
-		let text = contents in
+		let text = contents_old in
 			createTargetFile fileName text
 
 	let generateFile_Prelude (solution: Model.model) =
@@ -280,9 +280,9 @@ struct
 
 	let contentsJSon (solution: Model.model) =
 		Printf.sprintf
-	{zzz|
+	{ooo_solution_ml_ooo|
 		let solution = {| %s |}
-	|zzz}
+	|ooo_solution_ml_ooo}
 		(JSon.toStringN 2 solution#toJSon)
 
 	let contents (solution: Model.model) =
@@ -301,18 +301,18 @@ struct
 
 	let contentsJSon (solution: Model.model) =
 		Printf.sprintf
-	{zzz|
+	{ooo_template_ml_json_ooo|
 		(* Write your solution below, by using the provided example as a template *)
 
 		let solution = {| %s |}
-	|zzz}
+	|ooo_template_ml_json_ooo}
 		(JSon.toStringN 2 solution#example)
 
 	let contents (solution: Model.model) =
 		Printf.sprintf
-	{zzz|
+	{ooo_template_ml_ooo|
 		(* Write your solution below, by using the provided example as a template *)
-		%s|zzz}
+		%s|ooo_template_ml_ooo}	(* please, do not change this *)
 		((PolyModel.json2model solution#example)#toDisplayString "solution")
 
 	let generateFile_Template (solution: Model.model) useJSon =
@@ -329,14 +329,14 @@ struct
 	
 	let exercisePart (exercise: JSon.t) =
 		Printf.sprintf
-	{zzz|
+	{ooo_exercice_ooo|
 		let exercise = {| %s |}
-	|zzz}
+	|ooo_exercice_ooo}
 		(JSon.toStringN 2 exercise)
 
 	let handleAnswerPartJSon =
 		Printf.sprintf
-	{zzz|
+	{ooo_handle_answer_json_ooo|
 		let handleAnswer (): Learnocaml_report.t =
 			test_variable_property
 				[%%ty: string]
@@ -346,11 +346,11 @@ struct
 						(PolyModel.text2model solution)
 						(new Exercise.exercise (Arg.Text exercise))
 				)
-	|zzz}
+	|ooo_handle_answer_json_ooo}
 	
 	let handleAnswerPart (solution: Model.model) =
 		Printf.sprintf
-	{zzz|
+	{ooo_handle_answer_ooo|
 		let handleAnswer (): Learnocaml_report.t =
 			test_variable_property
 				[%%ty: %s]
@@ -361,14 +361,14 @@ struct
 										%s.model :> Model.model)
 						(new Exercise.exercise (Arg.Text exercise))
 				)
-	|zzz}
+	|ooo_handle_answer_ooo}
 	solution#xTypeName
 	solution#moduleName
 	solution#moduleName
 		
 	let contents exerciseText handleAnswerText =
 		Printf.sprintf
-	{zzz|
+	{ooo_test_ml_ooo|
 		open Test_lib
 		open Report
 		%s
@@ -389,7 +389,7 @@ struct
 			set_result @@
 			ast_sanity_check code_ast @@
 			handleAnswer
-	|zzz}
+	|ooo_test_ml_ooo}
 		exerciseText
 		handleAnswerText
 

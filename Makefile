@@ -55,6 +55,7 @@ git2:
 .PHONY: git3
 git3:
 	git commit
+	git status
 
 .PHONY: git4
 git4:

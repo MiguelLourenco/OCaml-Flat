@@ -244,9 +244,9 @@ struct
 				else
 					"/home/" ^ String.sub s 1 (n - 1)
 			else s
-			
+
 	let testing(active) =
-		active && try ignore (Sys.getenv("TESTING")); true with _ -> false	
+		active && try ignore (Sys.getenv("TESTING")); true with _ -> false
 end
 
 module UtilTests =

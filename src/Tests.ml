@@ -32,7 +32,7 @@ module Tests : sig end =
 struct
 	open TopLevel
 	open Examples
-	
+
 	let active = true
 
 	let test1 () =
