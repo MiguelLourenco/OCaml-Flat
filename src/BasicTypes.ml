@@ -38,7 +38,8 @@ struct
 	type variables = char set
 
 	let epsilon: symbol = '~' (* used for representing the empty transitions *)
-
+	let dollar: symbol = '$' (* used for representing input end *)
+	
 	type word = symbol list
 	type words = word set
 
