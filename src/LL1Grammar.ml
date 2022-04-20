@@ -475,6 +475,7 @@ struct
                                              ~recog:(Util.word2str newCurrPerm) ~left:(Util.word2str (List.tl (removeDollarFromWord stack)))
                                              simple) :: acceptX xs xs2 parsingTable newCurrPerm simple rep 
                                   else [newStep ~acceptedString:(Util.word2str currPerm)
+                                                ~input:(Util.word2str entry) ~stack:(Util.word2str stack) 
                                                 ~recog:(Util.word2str currPerm) ~left:(Util.word2str (removeDollarFromWord stack))
                                                 ~accepted:(Some false)
                                                 simple]

@@ -6,7 +6,10 @@ FLAGS =
 NAMES =		OCamlFlat Configuration Error Util Set Scanner JSon		\
 			BasicTypes RegExpSyntax CFGSyntax Examples	\
 			Entity Exercise Model FiniteAutomaton RegularExpression	\
-			ContextFreeGrammar FiniteEnumeration PolyModel TopLevel	\
+			ContextFreeGrammar RDParser RDParserWithDeclarations RDParserWithoutDeclarations \
+			RDParserNeedFunDeclaration RDParserNeedRecursiveFun \
+			RDParserC RDParserOCaml RDParserJava LL1Grammar \
+			FiniteEnumeration PolyModel TopLevel	\
 			LearnOCaml Tests PreOpen
 
 define SRCFILES
