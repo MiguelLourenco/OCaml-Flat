@@ -31,6 +31,9 @@
  * TODO: More cleanup. Improve the regular expression simplifier.
  *)
 
+open BasicTypes
+open RegExpSyntax
+
 module type RegularExpressionSig =
 sig	
 	type tx = string
@@ -76,8 +79,6 @@ end
 
 module RegularExpression : RegularExpressionSig =
 struct
-	open RegExpSyntax
-
 	type tx = string
 
 	type t = RegExpSyntax.t
@@ -95,16 +96,15 @@ struct
 		RegExpSyntax.toString re
 
 	let fromJSon j =
-		if j = JSon.JNull || not (JSon.hasField j "kind") then
+		if JSon.isNull j || not (JSon.hasField j "kind") then
 			RegExpSyntax.Zero
 		else
 			let re = JSon.fieldString j "re" in
 				RegExpSyntax.parse re
 
 	let toJSon (rep: t): JSon.t =
-		let open JSon in
-		JAssoc [
-			("re", JString (RegExpSyntax.toString rep));
+		JSon.makeAssoc [
+			("re", JSon.makeString (RegExpSyntax.toString rep));
 		]
 
 	(* auxiliary functions *)
@@ -328,7 +328,7 @@ struct
 
 				let printTreeX w re n =
 					let s = String.make (3*n) ' ' in
-					Util.println [s; Util.word2str w; " -> "; RegExpSyntax.toString re]
+					Util.println [s; word2str w; " -> "; RegExpSyntax.toString re]
 				in
 
 				let rec printTree t n =
@@ -510,43 +510,43 @@ struct
 
 	let testAlphabet () =
 		let re = new RegularExpression.model (Arg.Predef "re_abc") in
-			Util.println ["alphabet: "]; Util.printAlphabet (Set.toList (re#alphabet));
+			Util.println ["alphabet: "]; Util.printAlphabet re#alphabet;
 			Util.println []
 
 	let testAlphabet2 () =
 		let re = new RegularExpression.model (Arg.Predef "re_simple") in
-			Util.println ["alphabet: "]; Util.printAlphabet (Set.toList (re#alphabet));
+			Util.println ["alphabet: "]; Util.printAlphabet re#alphabet;
 			Util.println []
 
 	let testAlphabet3 () =
 		let re = new RegularExpression.model (Arg.Predef "re_complex") in
-			Util.println ["alphabet: "]; Util.printAlphabet (Set.toList (re#alphabet));
+			Util.println ["alphabet: "]; Util.printAlphabet re#alphabet;
 			Util.println []
 
 	let testAlphabet4 () =
 		let re = new RegularExpression.model (Arg.Predef "re_convoluted") in
-			Util.println ["alphabet: "]; Util.printAlphabet (Set.toList (re#alphabet));
+			Util.println ["alphabet: "]; Util.printAlphabet re#alphabet;
 			Util.println []
 
 	let testQuasiLang () =
 		let re = new RegularExpression.model (Arg.Predef "re_abc") in
 			let ws = re#quasiLanguage in
-			Util.printWords (Set.toList ws)
+			Util.printWords ws
 
 	let testQuasiLang2 () =
 		let re = new RegularExpression.model (Arg.Predef "re_simple") in
 			let ws = re#quasiLanguage in
-			Util.printWords (Set.toList ws)
+			Util.printWords ws
 
 	let testQuasiLang3 () =
 		let re = new RegularExpression.model (Arg.Predef "re_complex") in
 			let ws = re#quasiLanguage in
-			Util.printWords (Set.toList ws)
+			Util.printWords ws
 
 	let testQuasiLang4 () =
 		let re = new RegularExpression.model (Arg.Predef "re_convoluted") in
 			let ws = re#quasiLanguage in
-			Util.printWords (Set.toList ws)
+			Util.printWords ws
 
 	let check f w =
 		let msg = 
@@ -555,54 +555,54 @@ struct
 
 	let testAccept () =
 		let m = new RegularExpression.model (Arg.Predef "re_abc") in
-			check m#accept ['a';'a']
+			check m#accept (word "aa")
 
 	let testAccept2 () =
 		let m = new RegularExpression.model (Arg.Predef "re_simple") in
-			check m#accept ['a';'a']
+			check m#accept (word "aa")
 
 	let testAccept3 () =
 		let m = new RegularExpression.model (Arg.Predef "re_complex") in
-			check m#accept ['a';'a']
+			check m#accept (word "aa")
 
 	let testAccept4 () =
 		let m = new RegularExpression.model (Arg.Predef "re_convoluted") in
-			check m#accept ['a';'a']
+			check m#accept (word "aa")
 
 	let testGenerate () =
 		let re = new RegularExpression.model (Arg.Predef "re_abc") in
-			Util.println ["generated words size 0:"]; Util.printWords (Set.toList (re#generate 0));
-			Util.println ["generated words size 1:"]; Util.printWords (Set.toList (re#generate 1));
-			Util.println ["generated words size 2:"]; Util.printWords (Set.toList (re#generate 2));
-			Util.println ["generated words size 3:"]; Util.printWords (Set.toList (re#generate 3));
-			Util.println ["generated words size 4:"]; Util.printWords (Set.toList (re#generate 4));
+			Util.println ["generated words size 0:"]; Util.printWords (re#generate 0);
+			Util.println ["generated words size 1:"]; Util.printWords (re#generate 1);
+			Util.println ["generated words size 2:"]; Util.printWords (re#generate 2);
+			Util.println ["generated words size 3:"]; Util.printWords (re#generate 3);
+			Util.println ["generated words size 4:"]; Util.printWords (re#generate 4);
 			Util.println []
 
 	let testGenerate2 () =
 		let re = new RegularExpression.model (Arg.Predef "re_simple") in
-			Util.println ["generated words size 0:"]; Util.printWords (Set.toList (re#generate 0));
-			Util.println ["generated words size 1:"]; Util.printWords (Set.toList (re#generate 1));
-			Util.println ["generated words size 2:"]; Util.printWords (Set.toList (re#generate 2));
-			Util.println ["generated words size 3:"]; Util.printWords (Set.toList (re#generate 3));
-			Util.println ["generated words size 4:"]; Util.printWords (Set.toList (re#generate 4));
+			Util.println ["generated words size 0:"]; Util.printWords (re#generate 0);
+			Util.println ["generated words size 1:"]; Util.printWords (re#generate 1);
+			Util.println ["generated words size 2:"]; Util.printWords (re#generate 2);
+			Util.println ["generated words size 3:"]; Util.printWords (re#generate 3);
+			Util.println ["generated words size 4:"]; Util.printWords (re#generate 4);
 			Util.println []
 
 	let testGenerate3 () =
 		let re = new RegularExpression.model (Arg.Predef "re_complex") in
-			Util.println ["generated words size 0:"]; Util.printWords (Set.toList (re#generate 0));
-			Util.println ["generated words size 1:"]; Util.printWords (Set.toList (re#generate 1));
-			Util.println ["generated words size 2:"]; Util.printWords (Set.toList (re#generate 2));
-			Util.println ["generated words size 3:"]; Util.printWords (Set.toList (re#generate 3));
-			Util.println ["generated words size 4:"]; Util.printWords (Set.toList (re#generate 4));
+			Util.println ["generated words size 0:"]; Util.printWords (re#generate 0);
+			Util.println ["generated words size 1:"]; Util.printWords (re#generate 1);
+			Util.println ["generated words size 2:"]; Util.printWords (re#generate 2);
+			Util.println ["generated words size 3:"]; Util.printWords (re#generate 3);
+			Util.println ["generated words size 4:"]; Util.printWords (re#generate 4);
 			Util.println []
 
 	let testGenerate4 () =
 		let re = new RegularExpression.model (Arg.Predef "re_convoluted") in
-			Util.println ["generated words size 0:"]; Util.printWords (Set.toList (re#generate 0));
-			Util.println ["generated words size 1:"]; Util.printWords (Set.toList (re#generate 1));
-			Util.println ["generated words size 2:"]; Util.printWords (Set.toList (re#generate 2));
-			Util.println ["generated words size 3:"]; Util.printWords (Set.toList (re#generate 3));
-			Util.println ["generated words size 4:"]; Util.printWords (Set.toList (re#generate 4));
+			Util.println ["generated words size 0:"]; Util.printWords (re#generate 0);
+			Util.println ["generated words size 1:"]; Util.printWords (re#generate 1);
+			Util.println ["generated words size 2:"]; Util.printWords (re#generate 2);
+			Util.println ["generated words size 3:"]; Util.printWords (re#generate 3);
+			Util.println ["generated words size 4:"]; Util.printWords (re#generate 4);
 			Util.println []
 
 	let testSimplify2 () =
@@ -618,7 +618,7 @@ struct
 
 	let testTrace () =
 		let re = new RegularExpression.model (Arg.Predef "re_simple") in
-			re#allTrees ['a';'c';'b';'a';'c';'b']
+			re#allTrees (word "acbacb")
 	
 	let re_more = {| {
 			kind : "regular expression",
@@ -629,12 +629,11 @@ struct
 				
 	let testMore () =
 		let re = new RegularExpression.model (Arg.Text re_more) in
-			re#allTrees ['a';'a']
+			re#allTrees (word "aa")
 
 	let runAll =
-		if Util.testing(active) then (
-			Util.header "RegularExpressionTests";
+		if Util.testing active "RegularExpression" then begin
 			testMore ()
-		)
+		end
 end
 

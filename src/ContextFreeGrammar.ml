@@ -32,6 +32,8 @@
  * TODO: More cleanup.
  *)
 
+open BasicTypes
+
 module type ContextFreeGrammarSig =
 sig
 	type cfgTree = Leaf of char | Root of char * cfgTree list
@@ -48,6 +50,11 @@ sig
 		rules : CFGSyntax.rules
 	}
 	val modelDesignation : string
+	
+	val first : word -> bool -> t -> symbol Set.t
+	val follow : symbol -> bool -> t -> symbol Set.t
+	val lookahead : CFGSyntax.rule -> bool -> t -> symbol Set.t
+	
 	class model :
 		(t,tx) Arg.alternatives ->
 			object
@@ -61,6 +68,9 @@ sig
 
 				method tracing: unit
 				method isRegular: bool
+				method first: word -> symbol Set.t
+			  method follow: symbol -> symbol Set.t
+			  method lookahead: CFGSyntax.rule -> symbol Set.t
 				method accept: word -> bool
 				method acceptWithTracing: word -> unit
 				method generate: int -> words
@@ -116,32 +126,29 @@ struct
 	}
 
 	let fromJSon j =
-		if j = JSon.JNull || not (JSon.hasField j "kind") then {
+		if JSon.isNull j || not (JSon.hasField j "kind") then {
 			alphabet = Set.empty;
-			variables = Set.make ['_'];
-			initial = '_';
+			variables = Set.make [draftVar];
+			initial = draftVar;
 			rules = Set.empty;
 		}
 		else {
-			alphabet = JSon.fieldCharSet j "alphabet";
-			variables = JSon.fieldCharSet j "variables";
-			initial = (JSon.fieldString j "initial").[0];
-			rules = CFGSyntax.parse (Set.make (JSon.fieldStringList j "rules"));
+			alphabet = JSon.fieldSymbolSet j "alphabet";
+			variables = JSon.fieldSymbolSet j "variables";
+			initial = JSon.fieldSymbol j "initial";
+			rules = CFGSyntax.parse (JSon.fieldStringSet j "rules");
 		}
 	
-	let ruleToJSon {head=h; body=b} =
-		let open JSon in
-		let aa = String.concat "" (List.map (fun x -> Util.ch2str x) b) in
-		let hh = Util.ch2str h in
-			JString (hh^" -> "^aa)
+	let rule2str {head=h; body=b} =
+		let bb = if b = [] then [epsilon] else b in
+			(symb2str h) ^ " -> " ^ (word2str bb)
 
 	let toJSon (rep: t): JSon.t =
-		let open JSon in
-		JAssoc [
-			("alphabet", JList (List.map (fun s -> JString (Util.ch2str s)) (Set.toList rep.alphabet)));
-			("variables", JList (List.map (fun s -> JString (Util.ch2str s)) (Set.toList rep.variables)));
-			("initial", JString (Util.ch2str rep.initial) );
-			("rules", JList (List.map ruleToJSon (Set.toList rep.rules)));
+		JSon.makeAssoc [
+			("alphabet", JSon.makeSymbolSet rep.alphabet);
+			("variables", JSon.makeSymbolSet rep.variables);
+			("initial", JSon.makeSymbol rep.initial);
+			("rules", JSon.makeStringSet (Set.map rule2str rep.rules))
 		]
 
 	(*------Auxiliary functions---------*)
@@ -206,13 +213,114 @@ struct
 		}
 		|zzz}
 			(displayHeader name xTypeName)
-			(Util.charList2DisplayString repx.alphabet)
-			(Util.charList2DisplayString repx.variables)
-			(Util.char2DisplayString repx.initial)
+			(Util.symbolList2DisplayString repx.alphabet)
+			(Util.symbolList2DisplayString repx.variables)
+			(Util.symbol2DisplayString repx.initial)
 			(Util.stringList2DisplayString repx.rules)
+
+
+  let removeEpsilonFromWord w =
+    List.filter (fun c -> c <> epsilon) w
+
+  let removeDollarFromWord w =
+    List.filter (fun c -> c <> dollar) w
+
+  let rec doWordGenerateEmptyX w seen (rep:t) =
+    let rec doGenerateEmpty x =
+      if List.mem x seen
+      then false
+      else(
+		    let bodies = bodiesOfHead x rep.rules in
+		    Set.exists (fun b -> doWordGenerateEmptyX b (x::seen) rep) bodies 
+		  )
+		in      
+      List.for_all doGenerateEmpty w
+
+  let doWordGenerateEmpty w (rep:t) =
+    doWordGenerateEmptyX (removeDollarFromWord w) [] rep
+
+  let rec firstX testWord seen simple (rep:t) =
+    match testWord with
+		  | [] -> Set.empty
+			| [x] when Set.belongs x rep.variables -> 
+					let bodies = bodiesOfHead x rep.rules in
+					if Set.belongs x seen 
+					  then Set.empty
+					  else let result = Set.flatMap ( fun b ->
+					          let result = firstX b (Set.add x seen) simple rep in
+                    let empty = if b = []
+                                then Set.make [epsilon]
+                                else Set.empty in
+					          Set.union empty result
+					        ) bodies
+					        in
+                  if Set.exists (fun b -> doWordGenerateEmpty b rep) bodies 
+                    then Set.union result (Set.make [epsilon])
+                    else Set.make (removeEpsilonFromWord (Set.toList result))
+			| x::xs when Set.belongs x rep.alphabet -> 
+					Set.make [x]
+			| x::xs -> Set.union 
+		  						(firstX [x] seen simple rep) 
+									(if doWordGenerateEmpty [x] rep then firstX xs seen simple rep else Set.empty)  
+
+  let first2 (testWord:word) simple (rep:t) =
+    firstX testWord Set.empty simple rep
+
+  let rec first (testWord:word) simple (rep:t) =
+    let first = first2 testWord simple rep in
+    if simple then Set.filter (fun c -> c <> epsilon) first else first
+
+	let getFollowRules (testSymbol:symbol) (rep:t) =
+	  Set.filter (fun r -> Set.belongs testSymbol (Set.make r.body) ) rep.rules
+
+  let rec getFollowInfo2 testSymbol h b =
+    match b with
+      | [] -> []
+      | x::xs when x = testSymbol -> (h, xs) :: getFollowInfo2 testSymbol h xs
+      | x::xs -> getFollowInfo2 testSymbol h xs
+
+  (* given a variable X, returns the pairs (Y,w2) *)
+  let getFollowInfo testSymbol rep =
+    let rules = Set.toList (getFollowRules testSymbol rep) in
+    List.flatten (List.map (fun r -> getFollowInfo2 testSymbol r.head r.body) rules )
+
+    
+  let rec followX (testSymbol:symbol) seen simple (rep:t) =
+    let pairs = Set.make (getFollowInfo testSymbol rep) in
+    let dollar = if testSymbol = rep.initial
+                  then Set.make [dollar]
+                  else Set.empty
+    in
+    let set = Set.flatMap (fun (y,w) -> 
+          Set.union 
+            (Set.filter (fun s -> s <> epsilon) (first w simple rep))
+            (if (not (Set.belongs y seen) && doWordGenerateEmpty w rep) 
+              then followX y (Set.add testSymbol seen) simple rep
+              else Set.empty
+            )
+    ) pairs 
+    in
+    Set.union set dollar
+    
+  let follow2 testSymbol simple rep =
+    followX testSymbol (Set.make []) simple rep
+  
+  let follow testSymbol simple rep =
+    let follow = follow2 testSymbol simple rep in
+    if simple then Set.filter (fun c -> c <> dollar) follow else follow
+
+
+  let lookahead rule simple (rep:t) =
+    let x = rule.head in
+    let w = rule.body in
+      Set.filter (
+        fun c -> c <> epsilon 
+      ) (Set.union (first2 w simple rep) (if doWordGenerateEmpty w rep then follow2 x simple rep else Set.empty))
 
 	class model (arg: (t,tx) Arg.alternatives) =
 		object(self) inherit Model.model arg modelDesignation as super
+
+      val mutable simplified = false
 
 			val representation: t =
 				match arg with
@@ -271,7 +379,7 @@ struct
 				;
 
 				if not isInitialValid then
-					Error.error (Util.ch2str representation.initial)
+					Error.error (symb2str representation.initial)
 						"Symbol initial does not belong to the set of all variables" ()
 				;
 
@@ -317,9 +425,12 @@ struct
 					in
 						Set.for_all (fun b -> isLeftLinearX b) bs
 				in
-
 					isRightLinear bs || isLeftLinear bs
 
+
+      method first testWord = first testWord simplified self#representation
+      method follow testSymbol = follow testSymbol simplified self#representation
+      method lookahead rule = lookahead rule simplified self#representation
 
 			(* This method checks if the given word is accepted by the grammar
 			*
@@ -494,7 +605,7 @@ struct
 
 				let printWset ws =
 					Util.print ["["];
-					Set.iter (fun w -> Util.print [Util.word2str w; ";"]) ws;
+					Set.iter (fun w -> Util.print [word2str w; ";"]) ws;
 					Util.println ["]"];
 				in
 
@@ -571,7 +682,7 @@ end
 module ContextFreeGrammarTests: sig end =
 struct
 	let active = false
-
+	
 	let test0 () =
 		let m = new ContextFreeGrammar.model (Arg.Predef "cfg_simple") in
 		let j = m#toJSon in
@@ -581,7 +692,7 @@ struct
 		let m = new ContextFreeGrammar.model (Arg.Predef "cfg_balanced") in
 		let e = new Exercise.exercise (Arg.Predef "exer_balanced") in
 		let result = m#checkExercise e in
-			if result then Util.print ["it works"] else Util.print ["it does not work"]
+			if result then Util.println ["it works"] else Util.println ["it does not work"]
 
 	let testRegular () =
 		let m = new ContextFreeGrammar.model (Arg.Predef "cfg_simple") in
@@ -598,17 +709,21 @@ struct
 
 	let testTrace () =
 		let m = new ContextFreeGrammar.model (Arg.Predef "cfg_simple") in
-			m#acceptWithTracing ['0';'1']
+			m#acceptWithTracing (word "01")
 
 	let testGen () =
 		let m = new ContextFreeGrammar.model (Arg.Predef "cfg_simple") in
 		let ws = m#generate 4 in
-			Util.printWords (Set.toList ws)
+			Util.printWords ws
 
 	let runAll =
-		if Util.testing(active) then (
-			Util.header "ContextFreeGrammarTests";
+		if Util.testing active "ContextFreeGrammar" then begin
+			test0 ();
 			test1 ();
-		)
+			testRegular ();
+			testAcc ();
+			testTrace ();
+			testGen ()
+		end
 end
 

@@ -32,6 +32,7 @@
  * TODO: More cleanup.
  *)
  
+open BasicTypes
 
 module type FiniteAutomatonSig = sig
 
@@ -142,7 +143,7 @@ struct
 	}
 
 	let fromJSon (j: JSon.t): t =
-		if j = JSon.JNull || not (JSon.hasField j "kind") then {
+		if JSon.isNull j || not (JSon.hasField j "kind") then {
 			alphabet = Set.empty;
 			states = Set.make ["_"];
 			initialState = "_";
@@ -150,7 +151,7 @@ struct
 			acceptStates = Set.empty
 		}
 		else {
-			alphabet = JSon.fieldCharSet j "alphabet";
+			alphabet = JSon.fieldSymbolSet j "alphabet";
 			states = JSon.fieldStringSet j "states";
 			initialState = JSon.fieldString j "initialState";
 			transitions = JSon.fieldTriplesSet j "transitions";
@@ -158,14 +159,12 @@ struct
 		}
 
 	let toJSon (rep: t): JSon.t =
-		let open JSon in
-		JAssoc [
-			("alphabet", JList (List.map (fun c -> JString (Util.ch2str c)) (Set.toList rep.alphabet)));
-			("states", JList (List.map (fun s -> JString s) (Set.toList rep.states)));
-			("initialState", JString rep.initialState);
-			("transitions", JList (List.map (fun (a,b,c) ->
-				JList [JString a; JString (Util.ch2str b); JString c]) (Set.toList rep.transitions)));
-			("acceptStates", JList (List.map (fun s -> JString s) (Set.toList rep.acceptStates)))
+		JSon.makeAssoc [
+			("alphabet", JSon.makeSymbolSet rep.alphabet);
+			("states", JSon.makeStringSet rep.states);
+			("initialState", JSon.makeString rep.initialState);
+			("transitions", JSon.makeTriplesSet rep.transitions);
+			("acceptStates", JSon.makeStringSet rep.acceptStates)
 		]
 
 	(*------Auxiliary functions---------*)
@@ -216,7 +215,7 @@ struct
 		}
 		|zzz}
 			(displayHeader name xTypeName)
-			(Util.charList2DisplayString repx.alphabet)
+			(Util.symbolList2DisplayString repx.alphabet)
 			(Util.stringList2DisplayString repx.states)
 			(Util.string2DisplayString repx.initialState)
 			(Util.transitions2DisplayString repx.transitions)
@@ -368,7 +367,7 @@ struct
 				let res = acceptX i w representation.transitions in
 
 				let printRes w sts =
-					Util.print ["('"; Util.word2str w; "',["];
+					Util.print ["('"; word2str w; "',["];
 					Set.iter (fun st -> Util.print [st; ";"]) sts;
 					Util.print ["])"];
 
@@ -866,7 +865,7 @@ struct
 		let fa = new FiniteAutomaton.model (Arg.Predef "fa_abc") in
 		let fa2 = fa#toDeterministic in
 			Util.println ["productive states:"];
-			Util.printStates (Set.toList fa2#productive);
+			Util.printStates fa2#productive;
 			Util.println []
 
 	let faAccept = {| {
@@ -909,50 +908,50 @@ struct
 	let testAcceptBF () =
 		let fa = new FiniteAutomaton.model (Arg.Text faAccept) in
 			check fa#acceptBreadthFirst [];
-			check fa#acceptBreadthFirst ['a'];
-			check fa#acceptBreadthFirst ['a';'b'];
-			check fa#acceptBreadthFirst ['b'];
-			check fa#acceptBreadthFirst ['b';'a'];
-			check fa#acceptBreadthFirst ['a';'b';'b'];
-			check fa#acceptBreadthFirst ['a';'b';'a'];
-			check fa#acceptBreadthFirst ['b';'a';'a'];
-			check fa#acceptBreadthFirst ['b';'a';'b'];
+			check fa#acceptBreadthFirst (word "a");
+			check fa#acceptBreadthFirst (word "ab");
+			check fa#acceptBreadthFirst (word "b");
+			check fa#acceptBreadthFirst (word "ba");
+			check fa#acceptBreadthFirst (word "abb");
+			check fa#acceptBreadthFirst (word "aba");
+			check fa#acceptBreadthFirst (word "baa");
+			check fa#acceptBreadthFirst (word "bab");
 			Util.println []
 
 	let testAcceptBF2 () =
 		let fa = new FiniteAutomaton.model (Arg.Text faAccept2) in
 			check fa#acceptBreadthFirst [];
-			check fa#acceptBreadthFirst ['a'];
-			check fa#acceptBreadthFirst ['a';'d'];
-			check fa#acceptBreadthFirst ['a';'b';'a';'d'];
-			check fa#acceptBreadthFirst ['c'];
+			check fa#acceptBreadthFirst (word "a");
+			check fa#acceptBreadthFirst (word "ad");
+			check fa#acceptBreadthFirst (word "abad");
+			check fa#acceptBreadthFirst (word "c");
 			Util.println []
 
 	let testAccept () =
 		let fa = new FiniteAutomaton.model (Arg.Text faAccept) in
 			check fa#accept [];
-			check fa#accept ['a'];
-			check fa#accept ['a';'b'];
-			check fa#accept ['b'];
-			check fa#accept ['b';'a'];
-			check fa#accept ['a';'b';'b'];
-			check fa#accept ['a';'b';'a'];
-			check fa#accept ['b';'a';'a'];
-			check fa#accept ['b';'a';'b'];
+			check fa#accept (word "a");
+			check fa#accept (word "ab");
+			check fa#accept (word "b");
+			check fa#accept (word "ba");
+			check fa#accept (word "abb");
+			check fa#accept (word "aba");
+			check fa#accept (word "baa");
+			check fa#accept (word "bab");
 			Util.println []
 
 	let testAccept2 () =
 		let fa = new FiniteAutomaton.model (Arg.Text faAccept2) in
 			check fa#accept [];
-			check fa#accept ['a'];
-			check fa#accept ['a';'d'];
-			check fa#accept ['a';'b';'a';'d'];
-			check fa#accept ['c'];
+			check fa#accept (word "a");
+			check fa#accept (word "ad");
+			check fa#accept (word "abad");
+			check fa#accept (word "c");
 			Util.println []
 
 	let testAccTrace () =
 		let fa = new FiniteAutomaton.model (Arg.Predef "fa_abc") in
-			fa#acceptWithTracing ['a';'b';'e']
+			fa#acceptWithTracing (word "abe")
 
 	let faGenerate = {| {
 		kind : "finite automaton",
@@ -1013,53 +1012,53 @@ struct
 
 	let testGenerate () =
 		let fa = new FiniteAutomaton.model (Arg.Text faGenerate) in
-			Util.println ["generated words size 0:"]; Util.printWords (Set.toList (fa#generate 0) );
-			Util.println ["generated words size 1:"]; Util.printWords (Set.toList (fa#generate 1) );
-			Util.println ["generated words size 2:"]; Util.printWords (Set.toList (fa#generate 2) );
-			Util.println ["generated words size 100:"]; Util.printWords (Set.toList (fa#generate 100) );
+			Util.println ["generated words size 0:"]; Util.printWords (fa#generate 0);
+			Util.println ["generated words size 1:"]; Util.printWords (fa#generate 1);
+			Util.println ["generated words size 2:"]; Util.printWords (fa#generate 2);
+			Util.println ["generated words size 100:"]; Util.printWords (fa#generate 100);
 			Util.println []
 
 	let testGenerate2 () =
 		let fa = new FiniteAutomaton.model (Arg.Text faGenerate2) in
-			Util.println ["generated words size 0:"]; Util.printWords (Set.toList (fa#generate 0));
-			Util.println ["generated words size 1:"]; Util.printWords (Set.toList (fa#generate 1));
-			Util.println ["generated words size 2:"]; Util.printWords (Set.toList (fa#generate 2));
-			Util.println ["generated words size 3:"]; Util.printWords (Set.toList (fa#generate 3) );
-			Util.println ["generated words size 4:"]; Util.printWords (Set.toList (fa#generate 4) );
-			Util.println ["generated words size 18:"]; Util.printWords (Set.toList (fa#generate 18) );
+			Util.println ["generated words size 0:"]; Util.printWords (fa#generate 0);
+			Util.println ["generated words size 1:"]; Util.printWords (fa#generate 1);
+			Util.println ["generated words size 2:"]; Util.printWords (fa#generate 2);
+			Util.println ["generated words size 3:"]; Util.printWords (fa#generate 3);
+			Util.println ["generated words size 4:"]; Util.printWords (fa#generate 4);
+			Util.println ["generated words size 18:"]; Util.printWords (fa#generate 18);
 
 			Util.println []
 
 	let testGenerate3 () =
 		let fa = new FiniteAutomaton.model (Arg.Text faGenerate3) in
-			Util.println ["generated words size 0:"]; Util.printWords (Set.toList (fa#generate 0));
-			Util.println ["generated words size 1:"]; Util.printWords (Set.toList (fa#generate 1));
-			Util.println ["generated words size 10:"]; Util.printWords (Set.toList (fa#generate 10));
-			Util.println ["generated words size 50:"]; Util.printWords (Set.toList (fa#generate 50));
-			Util.println ["generated words size 100:"]; Util.printWords (Set.toList (fa#generate 100));
-			Util.println ["generated words size 1000:"]; Util.printWords (Set.toList (fa#generate 1000));
+			Util.println ["generated words size 0:"]; Util.printWords (fa#generate 0);
+			Util.println ["generated words size 1:"]; Util.printWords (fa#generate 1);
+			Util.println ["generated words size 10:"]; Util.printWords (fa#generate 10);
+			Util.println ["generated words size 50:"]; Util.printWords (fa#generate 50);
+			Util.println ["generated words size 100:"]; Util.printWords (fa#generate 100);
+			Util.println ["generated words size 1000:"]; Util.printWords (fa#generate 1000);
 			Util.println []
 
 	let testGenerate4 () =
 		let fa = new FiniteAutomaton.model (Arg.Text faGenerate4) in
-			Util.println ["generated words size 0:"]; Util.printWords (Set.toList (fa#generate 0));
-			Util.println ["generated words size 1:"]; Util.printWords (Set.toList (fa#generate 1));
-			Util.println ["generated words size 10:"]; Util.printWords (Set.toList (fa#generate 10));
-			Util.println ["generated words size 100:"]; Util.printWords (Set.toList (fa#generate 100));
+			Util.println ["generated words size 0:"]; Util.printWords (fa#generate 0);
+			Util.println ["generated words size 1:"]; Util.printWords (fa#generate 1);
+			Util.println ["generated words size 10:"]; Util.printWords (fa#generate 10);
+			Util.println ["generated words size 100:"]; Util.printWords (fa#generate 100);
 			Util.println []
 
 	let testGenerateUntil () =
 		let fa = new FiniteAutomaton.model (Arg.Text faGenerate) in
-			Util.println ["generated words size 5:"]; Util.printWords (Set.toList (fa#generateUntil 5));
+			Util.println ["generated words size 5:"]; Util.printWords (fa#generateUntil 5);
 			Util.println [];
 		let fa = new FiniteAutomaton.model (Arg.Text faGenerate2) in
-			Util.println ["generated words size 5:"]; Util.printWords (Set.toList (fa#generateUntil 5));
+			Util.println ["generated words size 5:"]; Util.printWords (fa#generateUntil 5);
 			Util.println [];
 		let fa = new FiniteAutomaton.model (Arg.Text faGenerate3) in
-			Util.println ["generated words size 5:"]; Util.printWords (Set.toList (fa#generateUntil 5));
+			Util.println ["generated words size 5:"]; Util.printWords (fa#generateUntil 5);
 			Util.println [];
 		let fa = new FiniteAutomaton.model (Arg.Text faGenerate4) in
-			Util.println ["generated words size 5:"]; Util.printWords (Set.toList (fa#generateUntil 5));
+			Util.println ["generated words size 5:"]; Util.printWords (fa#generateUntil 5);
 			Util.println []
 
 	let faReach = {| {
@@ -1097,14 +1096,14 @@ struct
 			let fa2 = new FiniteAutomaton.model (Arg.Text faReach2) in
 			let start = fa#representation.initialState in
 			let start2 = fa2#representation.initialState in
-				Util.println ["reachable states:"]; Util.printStates (Set.toList (fa#reachable start)); Util.println [];
-				Util.println ["reachable states:"]; Util.printStates (Set.toList (fa#reachable start2)); Util.println []
+				Util.println ["reachable states:"]; Util.printStates (fa#reachable start); Util.println [];
+				Util.println ["reachable states:"]; Util.printStates (fa#reachable start2); Util.println []
 
 	let faProductive = {| {
 		kind : "finite automaton",
 		description : "this is an example",
 		name : "abc",
-		alphabet : ["a","b"],
+		alphabet : ["a", "b"],
 		states : ["S1","S2","S3","S4"],
 		initialState : "S1",
 		transitions : [
@@ -1118,7 +1117,7 @@ struct
 		kind : "finite automaton",
 		description : "this is an example",
 		name : "abc",
-		alphabet : ["a","b"],
+		alphabet : ["a", "b"],
 		states : ["S1","S2","S3","S4","S5","S6","S7"],
 		initialState : "S1",
 		transitions : [
@@ -1135,15 +1134,15 @@ struct
 	let testProductive () =
 		let fa = new FiniteAutomaton.model (Arg.Text faProductive) in
 		let fa2 = new FiniteAutomaton.model (Arg.Text faProductive2) in
-			Util.println ["productive states:"]; Util.printStates (Set.toList (fa#productive)); Util.println [];
-			Util.println ["productive states:"]; Util.printStates (Set.toList (fa2#productive)); Util.println []
+			Util.println ["productive states:"]; Util.printStates fa#productive; Util.println [];
+			Util.println ["productive states:"]; Util.printStates fa2#productive; Util.println []
 
 
 	let faClean = {| {
 		kind : "finite automaton",
 		description : "this is an example",
 		name : "abc",
-		alphabet : ["a","b"],
+		alphabet : ["a", "b"],
 		states : ["S1","S2","S3","S4"],
 		initialState : "S1",
 		transitions : [
@@ -1157,7 +1156,7 @@ struct
 		kind : "finite automaton",
 		description : "this is an example",
 		name : "abc",
-		alphabet : ["a","b"],
+		alphabet : ["a", "b"],
 		states : ["S1","S2","S3","S4"],
 		initialState : "S1",
 		transitions : [
@@ -1264,7 +1263,7 @@ struct
 	let testEquivalence () =
 		let fa = new FiniteAutomaton.model (Arg.Predef "fa_abc") in
 		let s = fa#equivalencePartition in
-			Set.iter (fun s -> Util.print ["set: "]; Util.printStates (Set.toList s)) s
+			Set.iter (fun s -> Util.print ["set: "]; Util.printStates s) s
 
 
 	let faMinimize = {| {
@@ -1369,49 +1368,33 @@ struct
 		let e = new Exercise.exercise (Arg.Predef "exer_astar") in
 		let fa = new FiniteAutomaton.model (Arg.Predef "dfa_astar") in
 		let (ins,outs,props) = fa#checkExerciseFailures e in	
-			Util.printWords (Set.toList ins);
-			Util.printWords (Set.toList outs);
-			Util.printStrings (Set.toList props)
+			Util.printWords ins;
+			Util.printWords outs;
+			Util.printStrings props
 
-	let testRepresentationX =
-		let xxx: FiniteAutomaton.tx =
-			let open FiniteAutomaton in {
-				alphabet = ['a'; 'b'];
-				states = ["S1"; "S2"; "S3"; "S4"; "S5"];
-				initialState = "S1";
-				transitions =
-				  [("S1", 'a', "S2"); ("S1", 'b', "S3"); ("S2", 'a', "S3");
-				   ("S2", 'b', "S4"); ("S3", 'a', "S2"); ("S3", 'b', "S4");
-				   ("S4", 'a', "S2"); ("S4", 'a', "S5"); ("S4", 'b', "S3")];
-				acceptStates = ["S4"]
-			}
-		in new FiniteAutomaton.model (Arg.RepresentationX xxx)
-
-
-(*
-	let fa_til = {| {
+	let faMinimize4 = {| {
 		kind : "finite automaton",
 		description : "this is an example",
-		name : "til",
-		alphabet : ["a","~"],
-		states : ["A","B"],
-		initialState : "A",
+		name : "abc",
+		alphabet : ["0", "1"],
+		states : ["00","01", "10", "11"],
+		initialState : "00",
 		transitions : [
-				["A","~","A"], ["B","~","A"],
-				["A","~","B"], ["A","a","B"], ["B","~","B"]
+				["00","1","01"], ["00","0","10"],
+				["01","1","00"], ["01","0","11"],
+				["10","0","00"], ["10","1","11"],
+				["11","1","10"], ["11","0","01"]
 			],
-		acceptStates : ["B"]
+		acceptStates : ["01"]
 	} |}
-	
-	let () =
-		let fa = new FiniteAutomaton.model (Arg.Text fa_til) in
-		let fa1 = fa#toDeterministic in
-			JSon.show (fa1#toJSon)	
-	*)
+
+	let testRepresentationX =
+		let fa = new FiniteAutomaton.model (Arg.Predef "fa_abc") in
+		let x = fa#representationx in
+			new FiniteAutomaton.model (Arg.RepresentationX x)
 	
 	let runAll =
-		if Util.testing(active) then (
-			Util.header "FiniteAutomatonTests";
+		if Util.testing active "FiniteAutomaton" then begin
 			testExercice ();
 			test0 ();
 			testBug ();
@@ -1421,6 +1404,6 @@ struct
 			testAccept ();
 			testAccept2 ();
 			testAccTrace ()
-		)
+		end
 end
 

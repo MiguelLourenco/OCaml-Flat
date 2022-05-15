@@ -27,34 +27,36 @@
 (*
  * Description: A very simple parser for CFG syntax.
  *)
+ 
+open BasicTypes
+open Scanner
 
 module type CFGSyntaxSig =
 sig
-	type rule = { head : char; body : char list; }
+	type rule = { head : symbol; body : symbol list; }
 	type rules = rule Set.t
 
 	val parse : string Set.t -> rule Set.t
+	val parseLine : string -> rule Set.t
 	val toStringList : rule Set.t -> string list
-	val (-->) : char -> string -> rule
+	val (-->) : symbol -> string -> rule
 	val show : rule Set.t -> unit
 end
 
 module CFGSyntax: CFGSyntaxSig =
 struct
-	type rule = { head : char; body : char list; }
+	type rule = { head : symbol; body : symbol list; }
 	type rules = rule Set.t
-
-	open Scanner
 
 	let isWhite c =
 		List.mem c [' '; '\t']
-
-	let rec parseHead () =
+	
+	let rec parseHead () : symbol =
 		match curr() with
 			| ' ' -> invalid "Premature end of expression\n"
-			| c -> skip() ; c
+			| c -> skip() ; char2symb c
 
-	let rec parseNeck () =
+	let rec parseNeck (): unit =
 		match curr() with
 			| ' ' -> invalid "Premature end of expression\n"
 			| '-' -> skip();
@@ -62,7 +64,7 @@ struct
 					else invalid "Bad neck\n"
 			| _ -> invalid "Bad neck\n"
 
-	let rec parseBody () =
+	let rec parseBody (): symbolList list =
 		match curr() with
 			| ' ' -> [[]]
 			| '|' -> skip(); []::parseBody ()
@@ -70,9 +72,9 @@ struct
 			| c -> skip();
 					match parseBody () with
 						| [] -> invalid "never happens"
-						| x::xs -> (c::x)::xs
+						| x::xs -> ((char2symb c)::x)::xs
 
-	let parseLine line =
+	let parseLine line: rule Set.t =
 		if String.trim line = "" then
 			Set.empty
 		else (
@@ -86,25 +88,25 @@ struct
 				Set.empty
 		)
 
-	let parse rs =
+	let parse rs: rule Set.t =
 		Set.flatMap parseLine rs
 
-	let toString1 r =
+	let toString1 r: string =
 		let h = r.head in
 		let b = if r.body = [] then [epsilon] else r.body in
-		let full = [h; ' '; '-'; '>' ; ' '] @ b in
-			String.concat "" (List.map (String.make 1) full)
+		let full = [symb2str h; " -> "] @ (List.map symb2str b) in
+			String.concat "" full
 
-	let toString rs =
+	let toString rs: string =
 		let rl = Set.toList rs in
 		String.concat "\n" (List.map toString1 rl)
 
-	let toStringList rs =
+	let toStringList rs: string list =
 		let rl = Set.toList rs in
 			List.map toString1 rl
 	
 	let (-->) h b : rule =
-		{ head = h; body = Util.str2word b } ;;
+		{ head = h; body = str2word b } ;;
 
 	let show rs =
 		Util.println [toString rs]
@@ -125,12 +127,11 @@ struct
 			CFGSyntax.show rules
 
 	let runAll =
-		if Util.testing(active) then (
-			Util.header "CFGSyntaxTests";
+		if Util.testing active "CFGSyntax" then begin
 			Util.header "test0";
 			test0 ();
 			Util.header "test1";
 			test1 ();
 			Util.header ""
-	)
+		end
 end

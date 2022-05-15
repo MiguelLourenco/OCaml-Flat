@@ -18,6 +18,7 @@
 (*
  * ChangeLog:
  *
+ * mar/2022 (amd) - More functions; stable ordering.
  * may/2021 (amd) - New projection functions; new fixed point function.
  * jan/2021 (amd) - Module in an independent file.
  * jun/2019 (amd) - Initial version, inside the big file "OCamlFlatSupport.ml".
@@ -36,26 +37,53 @@ sig
 	type 'a t (* opaque *)
 	val make : 'a list -> 'a t
 	val toList : 'a t -> 'a list
-	val cut : 'a t -> 'a * 'a t
 	val empty : 'a t
+	
+	val isEmpty : 'a t -> bool
 	val size : 'a t -> int
-	val belongs : 'a -> 'a t -> bool
-	val union : 'a t -> 'a t -> 'a t
+	val compare_sizes: 'a t -> 'b t -> int
+	val compare_size_with : 'a t -> int -> int
+	val cons : 'a -> 'a t -> 'a t
+	val hd : 'a t -> 'a
+	val tl : 'a t -> 'a t
+	val cut : 'a t -> 'a * 'a t
 	val nth : 'a t -> int -> 'a
+	val nth_opt : 'a t -> int -> 'a option
+	val init : int -> (int -> 'a) -> 'a t
+	val flatten : 'a t t -> 'a t
+	
+	val iter : ('a -> unit) -> 'a t -> unit
+	val iteri : (int -> 'a -> unit) -> 'a t -> unit
+	val map : ('a -> 'b) -> 'a t -> 'b t
+	val mapi : (int -> 'a -> 'b) -> 'a t -> 'b t
+	val flatMap : ('a -> 'b t) -> 'a t -> 'b t
+	val flat_map : ('a -> 'b t) -> 'a t -> 'b t
+	val fold_left: ('a -> 'b -> 'a) -> 'a -> 'b t -> 'a
+	val fold_right: ('a -> 'b -> 'b) -> 'a t -> 'b -> 'b
+	val fold_left_s: ('a t -> 'b -> 'a t) -> 'a t -> 'b t -> 'a t
+	val fold_right_s: ('a -> 'b t -> 'b t) -> 'a t -> 'b t -> 'b t
+
+	val for_all : ('a -> bool) -> 'a t -> bool
+	val exists : ('a -> bool) -> 'a t -> bool
+	val belongs : 'a -> 'a t -> bool
+	val subset : 'a t -> 'a t -> bool
+	val equals : 'a t -> 'a t -> bool
+	
+	val find : ('a -> bool) -> 'a t -> 'a
+	val find_opt : ('a -> bool) -> 'a t -> 'a option
+	val filter : ('a -> bool) -> 'a t -> 'a t
+	
+	val partition : ('a -> bool) -> 'a t -> 'a t * 'a t
+	
+	val split : ('a * 'b) t -> 'a t * 'b t
+	val combine : 'a t -> 'b t -> ('a * 'b) t
+
 	val add : 'a -> 'a t -> 'a t
 	val remove : 'a -> 'a t -> 'a t
 	val inter : 'a t -> 'a t -> 'a t
 	val diff : 'a t -> 'a t -> 'a t
-	val subset : 'a t -> 'a t -> bool
-	val map : ('a -> 'b) -> 'a t -> 'b t
-	val mapi : (int -> 'a -> 'b) -> 'a t -> 'b t
-	val filter : ('a -> bool) -> 'a t -> 'a t
-	val for_all : ('a -> bool) -> 'a t -> bool
-	val exists : ('a -> bool) -> 'a t -> bool
-	val flatten : 'a t t -> 'a t
-	val flatMap : ('a -> 'b t) -> 'a t -> 'b t
-	val iter : ('a -> unit) -> 'a t -> unit
-	val partition : ('a -> bool) -> 'a t -> 'a t * 'a t
+	val union : 'a t -> 'a t -> 'a t
+
 	val combinations : 'a t -> 'b t -> ('a * 'b) t
 	val star : 'a list t -> int -> 'a list t
 	val allDistinct : ('a -> 'b) -> 'a t -> bool
@@ -76,73 +104,111 @@ end
 module Set : SetSig =
 struct
 	type 'a t = 'a list
-	let make (l: 'a list): 'a t = List.sort_uniq compare l
-	let toList (s: 'a t): 'a list = s
-	let cut (s: 'a t) = (List.hd s, List.tl s)
-
-	let empty: 'a t = []
-	let size (s: 'a t): int = List.length s
-	let belongs (v: 'a) (s: 'a t): bool = List.mem v s
-	let union (s1: 'a t) (s2: 'a t): 'a t = make (s1 @ s2)
-	let nth (s: 'a t) (n: int) : 'a = List.nth s n
-	let add (v: 'a) (s: 'a t): 'a t = make (v :: s)
-	let remove (v: 'a) (s: 'a t): 'a t = List.filter (fun x -> x <> v) s
-	let inter (s1: 'a t) (s2: 'a t): 'a t = List.filter (fun x -> belongs x s2) s1
-	let diff (s1: 'a t) (s2: 'a t): 'a t = List.filter (fun x -> not (belongs x s2)) s1
-	let subset (s1: 'a t) (s2: 'a t): bool = List.for_all (fun x -> belongs x s2) s1
+	let makeOld l = List.sort_uniq compare l
+	let delX (v :'a) = List.filter (fun x -> x <> v)
 	
-	let map f s = make (List.map f s)
-	let mapi f s = make (List.mapi f s)
-	let filter f s = List.filter f s
-	let for_all f s = List.for_all f s
-	let exists f s = List.exists f s
-	let flatten ss = make (List.flatten ss)
-	let flatMap f s = flatten (List.map f s)
-	let iter f s = List.iter f s
-	let partition f s = let (a, b) = List.partition f s in (a, b)	(* <- already ordered *)
+	let rec make (l: 'a list): 'a t =
+		match l with
+		| [] -> []
+		| x::xs -> x::make (delX x xs)
+	let toList (s: 'a t): 'a list = s
+	let empty: 'a t = []
+
+	let isEmpty (s: 'a t): bool = s = []
+	let size: 'a t -> int = List.length
+	let compare_sizes: 'a t -> 'b t -> int = List.compare_lengths
+	let compare_size_with: 'a t -> int -> int = List.compare_length_with
+(* cons: add 'x' at the begin if 'x' is new in 's' *)
+	let cons (v :'a) (s: 'a t): 'a t = if List.mem v s then s else v::s
+(* add: add 'x' at the end if 'x' is new in 's' *)
+	let add (v :'a) (s: 'a t): 'a t = if List.mem v s then s else s@[v]
+	let hd: 'a t -> 'a = List.hd
+	let tl: 'a t -> 'a t = List.tl
+	let cut (s: 'a t) = (List.hd s, List.tl s)
+	let nth: 'a t -> int -> 'a = List.nth
+	let nth_opt: 'a t -> int -> 'a option = List.nth_opt
+	let init: int -> (int -> 'a) -> 'a t = List.init
+	let flatten (ss: 'a t t): 'a t = make (List.flatten ss)
+	
+	let iter: ('a -> unit) -> 'a t -> unit = List.iter	
+	let iteri: (int -> 'a -> unit) -> 'a t -> unit = List.iteri	
+	let map (f: 'a -> 'b) (s: 'a t): 'b t = make (List.map f s)
+	let mapi (f: int -> 'a -> 'b) (s: 'a t): 'b t = make (List.mapi f s)
+	let flatMap (f: 'a -> 'b t) (s: 'a t): 'b t = flatten (List.map f s)
+	let flat_map: ('a -> 'b t) -> 'a t -> 'b t = flatMap
+	let fold_left: ('a -> 'b -> 'a) -> 'a -> 'b t -> 'a = List.fold_left
+	let fold_right: ('a -> 'b -> 'b) -> 'a t -> 'b -> 'b = List.fold_right
+	let fold_left_s f u (s: 'a t): 'b t = make (List.fold_left f u s)
+	let fold_right_s f u (s: 'a t): 'b t = make (List.fold_right f u s)
+	
+	let for_all: ('a -> bool) -> 'a t -> bool = List.for_all
+	let exists: ('a -> bool) -> 'a t -> bool = List.exists
+	let belongs: 'a -> 'a t -> bool = List.mem
+	let subset (s1: 'a t) (s2: 'a t): bool = List.for_all (fun v -> belongs v s2) s1
+	let equals (s1: 'a t) (s2: 'a t): bool = subset s1 s2 && subset s2 s1
+
+	let find: ('a -> bool) -> 'a t -> 'a = List.find
+	let find_opt: ('a -> bool) -> 'a t -> 'a option = List.find_opt	
+	let filter: ('a -> bool) -> 'a t -> 'a t = List.filter	(* already distinct *)
+	
+	let partition: ('a -> bool) -> 'a t -> 'a t * 'a t = List.partition	(* already distinct *)
+	
+	let split (s: ('a * 'b) t): 'a t * 'b t = let (a, b) = List.split s in (make a, make b)
+	let combine: 'a t -> 'b t -> ('a * 'b) t = List.combine
+	
+	let remove: 'a -> 'a t -> 'a t = delX
+	let inter (s1: 'a t) (s2: 'a t): 'a t = List.filter (fun v -> belongs v s2) s1
+	let diff (s1: 'a t) (s2: 'a t): 'a t = List.filter (fun v -> not (belongs v s2)) s1
+(* union: join s1 with the new elements of s2 *)
+	let union (s1: 'a t) (s2: 'a t): 'a t = s1 @ (diff s2 s1)
+
 	let combinations (s1: 'a t) (s2: 'b t): ('a * 'b) t =
-		flatMap (fun x -> List.map (fun y -> (x,y)) s2) s1	(* <- already ordered *)
-	let starOne (s: 'a list t) (n: int) (l:'a list): 'a list t = (* private auxiliary *)
+		flatMap (fun x -> List.map (fun y -> (x,y)) s2) s1	(* already distinct *)
+	let starOne (s: 'a list t) (n: int) (l: 'a t): 'a list t = (* private auxiliary *)
 		let z = n - (List.length l) in
 		let sel = filter (fun k -> List.length k <= z) s in
 			map (fun k -> k @ l) sel
+	let rec fixedPoint (f: 'a -> 'a) (x: 'a): 'a =
+		let next = f x in
+			if x = next then x
+			else fixedPoint f next
 	let star (s: 'a list t) (n: int): 'a list t =
-		Util.fixedPoint (fun x -> union x (flatMap (starOne x n) s)) [[]]
+		fixedPoint (fun v -> union v (flatMap (starOne v n) s)) [[]]
 
-	let allDistinct f s = size s = size (map f s)
+	let allDistinct f (s: 'a t): bool = size s = size (map f s)
 	let hasDuplicates (s: 'a t): bool = size s <> size (make s)
 	let validate (l: 'a list) (culprit: string): 'a t =
 		if hasDuplicates l
 			then Error.error culprit "Repetitions in set" empty
 			else make l
 
-	let rec acumFixedPoint (f: 'a t -> 'a t) (x: 'a t): 'a t =
-		let next = union x (f x) in
-			if x = next then x
+	let rec acumFixedPoint (f: 'a t -> 'a t) (v: 'a t): 'a t =
+		let next = union v (f v) in
+			if v = next then v
 			else acumFixedPoint f next
 
-	let historicalFixedPoint (f: 'a t -> 'a t) (x: 'a t): 'a t =
-		let rec historicalFixedPointX (f: 'a t -> 'a t) (x: 'a t) (acum: 'a t): 'a t =
-			let next = f x in
-			let newAcum = union x acum in
-			if acum = newAcum then x
+	let historicalFixedPoint (f: 'a t -> 'a t) (v: 'a t): 'a t =
+		let rec historicalFixedPointX (f: 'a t -> 'a t) (v: 'a t) (acum: 'a t): 'a t =
+			let next = f v in
+			let newAcum = union v acum in
+			if acum = newAcum then v
 			else historicalFixedPointX f next newAcum
 		in
-			historicalFixedPointX f x empty
+			historicalFixedPointX f v empty
 
-	let historicalFixedPointTracing (f: 'a t -> 'a t) (x: 'a t): 'a t list =
-		let rec historicalFixedPointX (f: 'a t -> 'a t) (x: 'a t) (acum: 'a t) (trace: 'a t list): 'a t list =
-			let next = f x in
+	let historicalFixedPointTracing (f: 'a t -> 'a t) (v: 'a t): 'a t list =
+		let rec historicalFixedPointX (f: 'a t -> 'a t) (v: 'a t) (acum: 'a t) (trace: 'a t list): 'a t list =
+			let next = f v in
 			let newTrace = trace@[next] in
-			let newAcum = union x acum in
+			let newAcum = union v acum in
 			if acum = newAcum then trace
 			else historicalFixedPointX f next newAcum newTrace
 		in
-			historicalFixedPointX f x empty [x]
+			historicalFixedPointX f v empty [v]
 
-	let proj3_1 s3 = map ( fun (a,_,_) -> a ) s3
-	let proj3_2 s3 = map ( fun (_,b,_) -> b ) s3
-	let proj3_3 s3 = map ( fun (_,_,c) -> c ) s3
+	let proj3_1 s3 = map (fun (a,_,_) -> a) s3
+	let proj3_2 s3 = map (fun (_,b,_) -> b) s3
+	let proj3_3 s3 = map (fun (_,_,c) -> c) s3
 	let proj3_12 s3 = map (fun (a,b,_) -> (a,b)) s3
 	let proj3_23 s3 = map (fun (_,b,c) -> (b,c)) s3
 
@@ -167,6 +233,7 @@ sig
 	val filter : ('a * 'a -> bool) -> 'a t -> ('a * 'a) Set.t
 	val for_all : ('a * 'a -> bool) -> 'a t -> bool
 	val exists : ('a * 'a -> bool) -> 'a t -> bool
+	val exists : ('a * 'a -> bool) -> 'a t -> bool
 	val flatten : 'a t t -> 'a t
 	val flatMap : ('a -> 'b t) -> 'a t -> 'b t
 	val iter : ('a * 'a -> unit) -> 'a t -> unit
@@ -185,7 +252,7 @@ struct
 
 	(* invariant: a < b for all pairs (a,b) *)
 	let ord (a,b) = if a < b then (a, b)		(* keep *)
-					else if a > b then (b, a)	(* swap *)
+					else if b < a then (b, a)	(* swap *)
 					else failwith "UPSet.ord"	(* error *)
 
 	let make (l: ('a*'a) list): 'a t =

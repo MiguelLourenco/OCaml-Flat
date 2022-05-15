@@ -32,6 +32,8 @@
  * normalized/simplified version of the FLAT model.
  *)
 
+open BasicTypes
+
 module type ModelSig =
 sig
 	class virtual model :

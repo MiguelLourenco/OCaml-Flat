@@ -18,6 +18,8 @@
 (*
  * ChangeLog:
  *
+ * apr/2022 (amd) - Added the "make" family of functions. Required several changes
+ *						all over the code of several modules.
  * may/2021 (amd) - Added a second parser, for OCaml values syntax. The output
  *                  is regular JSon.
  * jan/2021 (amd) - Added a very simple recursive descent parser for JSon.
@@ -28,6 +30,9 @@
 (*
  * Description: Very simple JSon parser, plus some JSon handling functions.
  *)
+
+open BasicTypes
+open Scanner
 
 module type JSonSig =
 sig
@@ -46,15 +51,28 @@ sig
 	val show : t -> unit
 	val remove : t -> string list -> t
 
+	val isNull : t -> bool
 	val hasField : t -> string -> bool
+	
+	val fieldSymbol : t -> string -> symbol
+(*	val fieldSymbolList : t -> string -> symbol list *)
+	val fieldSymbolSet : t -> string -> symbol set
+	
 	val fieldString : t -> string -> string
-	val fieldStringList : t -> string -> string list
-	val fieldStringSet : t -> string -> string Set.t
-	val fieldCharList : t -> string -> char list
-	val fieldCharSet : t -> string -> char Set.t
-	val fieldTriplesList : t -> string -> (string * char * string) list
-	val fieldTriplesSet : t -> string -> (string * char * string) Set.t
+(*	val fieldStringList : t -> string -> string list *)
+	val fieldStringSet : t -> string -> string set
+
+(*	val fieldTriplesList : t -> string -> (string * symbol * string) list *)
+	val fieldTriplesSet : t -> string -> (string * symbol * string) set
+
 	val append: t -> t -> t
+	
+    val makeSymbol : symbol -> t
+	val makeSymbolSet : symbol set -> t
+    val makeString : string -> t
+    val makeStringSet : string set -> t
+    val makeTriplesSet : (string * symbol * string) set -> t
+    val makeAssoc : (string * t) list -> t
 end
 
 module JSon : JSonSig =
@@ -65,35 +83,33 @@ struct
 		| JAssoc of (string * t) list
 		| JList of t list
 
+	let parseString delim =
+		skip();	(* skip quotation mark *)
+		let tk = getToken (fun c -> c <> delim) in
+			match curr () with
+				| x when x = delim -> skip(); tk
+				| err -> expecting ("closing '" ^ (Char.escaped delim) ^ "'") err
+				
+	let parseWord () =
+		getToken (fun c -> 'a' <= c && c <= 'z'
+					|| 'A' <= c && c <= 'Z'
+					|| '0' <= c && c <= '9'
+					|| c = '_')
+
+	let parseLabel () =
+		match curr() with
+			| '"' -> parseString '"'
+			| 'a'..'z' -> parseWord ()
+			| err -> expecting "'STRING' or '}'" err
+
+	let checkEOF () =
+		match curr() with
+			| ' ' -> ()
+			| err -> expecting "'EOF'" err
+
+
 	module JSonParsing = (* JSon syntax *)
 	struct
-		open Scanner
-
-		let parseString () =
-			skip();	(* skip quotation mark *)
-			let tk = getToken (fun c -> c <> '"') in
-				match curr () with
-					| '"' -> skip(); tk
-					| err -> expecting "closing '\"'" err
-
-		let parseWord () =
-			getToken (fun c -> 'a' <= c && c <= 'z'
-						|| 'A' <= c && c <= 'Z'
-						|| '0' <= c && c <= '9'
-						|| c = '_')
-
-		let parseLabel () =
-			match curr() with
-				| '"' -> parseString ()
-				| 'a'..'z' -> parseWord ()
-				| err -> expecting "'STRING' or '}'" err
-
-		let checkEOF () =
-			match curr() with
-				| ' ' -> ()
-				| err -> expecting "'EOF'" err
-
-
 		let rec parsePair () =
 			let label = parseLabel () in
 				match curr() with
@@ -130,7 +146,7 @@ struct
 
 		and parseJSon s =
 			match curr() with
-				| '"' -> JString (parseString ())
+				| '"' -> JString (parseString '"')
 				| '[' -> JList (parseList ())
 				| '{' -> JAssoc (parseAssoc ())
 				| err -> expecting "'JSON'" err
@@ -146,33 +162,6 @@ struct
 
 	module OCamlValueParsing = (* OCaml value syntax *)
 	struct
-		open Scanner
-
-		let parseString (delim) =
-			skip();	(* skip quotation mark *)
-			let tk = getToken (fun c -> c <> delim) in
-				match curr () with
-					| x when x = delim -> skip(); tk
-					| err -> expecting "closing '\"'" err
-
-		let parseWord () =
-			getToken (fun c -> 'a' <= c && c <= 'z'
-						|| 'A' <= c && c <= 'Z'
-						|| '0' <= c && c <= '9'
-						|| c = '_')
-
-		let parseLabel () =
-			match curr() with
-				| '"' -> parseString ('"')
-				| 'a'..'z' -> parseWord ()
-				| err -> expecting "'STRING' or '}'" err
-
-		let checkEOF () =
-			match curr() with
-				| ' ' -> ()
-				| err -> expecting "'EOF'" err
-
-
 		let rec parsePair () =
 			let label = parseLabel () in
 				match curr() with
@@ -223,8 +212,8 @@ struct
 
 		and parseOon s =
 			match curr() with
-				| '"' -> JString (parseString ('"'))
-				| '\'' -> JString (parseString ('\''))
+				| '"' -> JString (parseString '"')
+				| '\''-> JString (parseString '\'')
 				| '[' -> JList (parseList ())
 				| '(' -> JList (parseTuple ())
 				| '{' -> JAssoc (parseAssoc ())
@@ -294,18 +283,18 @@ struct
 		| JString s ->
 				"\"" ^ s ^ "\""
 		| JList l when List.exists isComplex l ->
-				let elems = List.map (textual (tab2+1) (tab2+1)) l in (
+				let elems = List.map (textualOCaml (tab2+1) (tab2+1)) l in (
 						"[\n"
 						^ String.concat (",\n") elems ^ "\n"
 						^ tab tab2 ^ "]"
 					)
 		| JList l ->
-				let elems = List.map (textual 0 0) l in
+				let elems = List.map (textualOCaml 0 0) l in
 					("[" ^ String.concat ", " elems ^ "]")
 		| JAssoc [] ->
 				"{}"
 		| JAssoc l ->
-				let field (s,j) = tab (tab2+1) ^ s ^ " : " ^ textual 0 (tab2+1) j in
+				let field (s,j) = tab (tab2+1) ^ s ^ " : " ^ textualOCaml 0 (tab2+1) j in
 					let elems = List.map field l in (
 						"{\n"
 						^ String.concat ",\n" elems ^ "\n"
@@ -330,6 +319,9 @@ struct
 
 
 (* MEMBERSHIP *)
+	let isNull j =
+		j = JNull
+
 	let hasField j name =
 		match j with
 		| JAssoc obj -> (
@@ -353,6 +345,29 @@ struct
 (* MORE *)
 
 	let error = Error.error
+	
+	let dummySymb = symb "#"
+
+	let fieldSymbol (j: t) (field: string): symbol =
+		match j |> getField field with
+		| JNull -> error field "Missing field" dummySymb
+		| JString s -> str2symb s
+		| _ -> error field "Expected symbol" dummySymb
+
+	let asSymbol (j: t) (field: string): symbol =
+		match j with
+		| JString s -> str2symb s
+		| _ -> error field "Expected symbol" dummySymb
+
+	let fieldSymbolList (j: t) (field: string): symbol list =
+		match j |> getField field with
+		| JNull -> error field "Missing field" []
+		| JList l -> List.map (fun j -> asSymbol j field) l
+		| _ -> error field "Expected symbol list" []
+
+	let fieldSymbolSet (j: t) (field: string): symbol set =
+		Set.validate (fieldSymbolList j field) field
+
 
 	let fieldString (j: t) (field: string) =
 		match j |> getField field with
@@ -374,40 +389,48 @@ struct
 	let fieldStringSet (j: t) (field: string) =
 		Set.validate (fieldStringList j field) field
 
-	let asChar (j: t) (field: string) =
+	let asStringSymbolString (j: t) (field: string) =
 		match j with
-		| JString s when String.length s = 1 -> String.get s 0
-		| _ -> error field "Expected char" '#'
+		| JList [a; b; c] -> (asString a field, asSymbol b field, asString c field)
+		| _ -> error field "Malformed triple" ("#",dummySymb,"#")
 
-	let fieldCharList (j: t) (field: string) =
-		match j |> getField field with
-		| JNull -> error field "Missing field" []
-		| JList l -> List.map (fun j -> asChar j field) l
-		| _ -> error field "Expected char list" []
-
-	let fieldCharSet (j: t) (field: string) =
-		Set.validate (fieldCharList j field) field
-
-	let asStringCharString (j: t) (field: string) =
-		match j with
-		| JList [a; b; c] -> (asString a field, asChar b field, asString c field)
-		| _ -> error field "Malformed triple" ("#",'#',"#")
 
 	let fieldTriplesList (j: t) (field: string) =
 		match j |> getField field with
 		| JNull -> error field "Missing field" []
-		| JList l -> List.map (fun j -> asStringCharString j field) l
+		| JList l -> List.map (fun j -> asStringSymbolString j field) l
 		| _ -> []
 
 	let fieldTriplesSet (j: t) (field: string) =
 		Set.validate (fieldTriplesList j field) field
+	
 	
 	let append j1 j2 =
 		match j1, j2 with
 		| JAssoc l1, JAssoc l2 -> JAssoc (l1 @ l2)
 		| _, _ -> failwith "JSon.append: not Assoc"
 
+	let makeSymbol s =
+		JString (symb2str s)
+
+	let makeSymbolSet s =
+		JList (List.map makeSymbol (Set.toList s))
+		
+	let makeString s =
+		JString s
+
+	let makeStringSet s =
+		JList (List.map makeString (Set.toList s))
+
+	let makeTriplesSet s =
+		JList (List.map (fun (a,b,c) ->
+				JList [JString a; JString (symb2str b); JString c]) (Set.toList s))
+
+    let makeAssoc l =
+		JAssoc l
 end
+
+
 
 module JSonTests =
 struct
@@ -453,9 +476,8 @@ struct
 			JSon.show oon2
 
 	let runAll =
-		if Util.testing(active) then (
-			Util.header "JSonTests";
+		if Util.testing active "JSon" then begin
 			test ()
-		)
+		end
 
 end

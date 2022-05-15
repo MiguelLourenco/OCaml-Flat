@@ -53,6 +53,8 @@
  *   the usual files: "template.ml", "solution.ml", "meta.json", etc.
  *)
 
+open BasicTypes
+
 module type LearnOCamlSig =
 sig
 	val setOCamlFlatDir : string -> unit
@@ -116,7 +118,7 @@ struct
 	
 	(* ----- Utility functions ----- *)
 	let processUnitTest m expected w =
-			(Util.word2str w, expected, m#accept w = expected)
+			(word2str w, expected, m#accept w = expected)
 
 	let semanticValidation (m: Model.model) =
 		m#errors
@@ -193,9 +195,9 @@ struct
 	let completeJSon kind j  =
 		match kind with
 		| "regularExpression" | "RegularExpression.tx" ->
-			JSon.JAssoc [("re", j)]
+			JSon.makeAssoc [("re", j)]
 		| "finiteEnumeration" | "FiniteEnumeration.tx" ->
-			JSon.JAssoc [("words", j)]
+			JSon.makeAssoc [("words", j)]
 		| _ ->
 			j
 
@@ -421,7 +423,7 @@ end
 
 module LearnOCamlTests =
 struct
-	let active = true
+	let active = false
 
 	let prepare () =
 		LearnOCaml.setOCamlFlatDir "~/work/OCamlFlat";
@@ -464,7 +466,7 @@ struct
 		let solution = JSon.parse fe_colors in
 			LearnOCaml.generateExerciseDir exercise solution false
 
-	let decl = {|
+	let decl1 = {|
 		let solution: finiteAutomaton =
 		{
 			alphabet = ['a'];
@@ -496,14 +498,13 @@ struct
 	|}
 
 	let test4 () =
-		let j = LearnOCaml.decl2json decl4 in
+		let j = LearnOCaml.decl2json decl1  in
 			JSon.show j
  
 	let runAll =
-		if Util.testing(active) then (
-			Util.header "LearnOCamlTests";
-			test0 ()
-		)
+		if Util.testing active "LearnOCaml" then begin
+			test4 ()
+		end
 end
 
 (*

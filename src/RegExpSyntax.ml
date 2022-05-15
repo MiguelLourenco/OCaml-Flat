@@ -28,13 +28,16 @@
  * Description: A very simple parser for regular expressions.
  *)
 
+open BasicTypes
+open Scanner
+
 module type RegExpSyntaxSig =
 sig
 	type t =
 		| Plus of t * t
 		| Seq of t * t
 		| Star of t
-		| Symb of char
+		| Symb of symbol
 		| Empty
 		| Zero
  
@@ -59,11 +62,9 @@ struct
 		| Plus of t * t
 		| Seq of t * t
 		| Star of t
-		| Symb of char
+		| Symb of symbol
 		| Empty
 		| Zero
-
-	open Scanner
 
 	let rec parseExp () =
 		let t = parseTerm () in
@@ -90,7 +91,7 @@ struct
 			| '(' -> skip(); parseParentised ()
 			| '+' | '*' -> invalid "Invalid use of wildcard\n"
 			| ' ' -> invalid "Premature end of expression\n"
-			| c -> skip(); (Symb c)
+			| c -> skip(); (Symb (char2symb c))
 
 	and parseParentised () =
 		let e = parseExp () in (
@@ -118,7 +119,7 @@ struct
 					^ (if n > 1 then ")" else "")
 			| Star(r) ->
 					toStringN 2 r ^ "*"
-			| Symb(c) -> String.make 1 c
+			| Symb(c) -> symb2str c
 			| Empty -> "~"
 			| Zero -> "!"
 
@@ -129,7 +130,8 @@ struct
 		Util.println [toString re]
 end
 
-module RegExpSyntaxTests = struct
+module RegExpSyntaxTests =
+struct
 	let active = false
 
 	let test0 () =
@@ -141,9 +143,8 @@ module RegExpSyntaxTests = struct
 			RegExpSyntax.show re
 
 	let runAll =
-		if Util.testing(active) then (
-			Util.header "RegExpSyntaxTests";
+		if Util.testing active "RegExpSyntax" then begin
 			test0 ();
 			test1 ()
-	)
+		end
 end

@@ -44,11 +44,11 @@ struct
 
 	let fromAlternatives alt =
 		match alt with
-			| JSon j -> j
-			| Text str -> JSon.parse str
-			| File str -> JSon.fromFile str
-			| Predef str -> JSon.parse (Examples.example str)
-			| _ -> JSon.JNull
+		| JSon j -> j
+		| Text str -> JSon.parse str
+		| File str -> JSon.fromFile str
+		| Predef str -> JSon.parse (Examples.example str)
+		| _ -> JSon.JNull
 end
 
 module Entity =
@@ -67,21 +67,19 @@ struct
 	}
 
 	let fromJSon (j: JSon.t) (expectedKind: string): t =
-		let open JSon in
-		if j = JNull then
+		if JSon.isNull j then
 			dummyId expectedKind
 		else {
-			kind = fieldString j "kind";
-			description = fieldString j "description";
-			name = fieldString j "name"
+			kind = JSon.fieldString j "kind";
+			description = JSon.fieldString j "description";
+			name = JSon.fieldString j "name"
 		}
 		
 	let toJSon (rep: t): JSon.t =
-		let open JSon in
-		JAssoc [
-			("kind", JString rep.kind);
-			("description", JString rep.description);
-			("name", JString rep.name)
+		JSon.makeAssoc [
+			("kind", JSon.makeString rep.kind);
+			("description", JSon.makeString rep.description);
+			("name", JSon.makeString rep.name)
 		]
 
 	class virtual entity (arg: ('r,'x) Arg.alternatives) (expectedKind: string) =
@@ -128,8 +126,8 @@ struct
 		()
 
 	let runAll =
-		if Util.testing(active) then
-			Util.header "EntityTests";
+		if Util.testing active "Entity" then begin
 			test0 ()
+		end
 end
 

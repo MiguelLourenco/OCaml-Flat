@@ -1,9 +1,12 @@
+
+open BasicTypes
+
 module type LL1GrammarSig =
 sig
 
   open ContextFreeGrammar  
   
-  type cfgTree = Leaf of char | Root of char * cfgTree list
+  type cfgTree = Leaf of symbol | Root of symbol * cfgTree list
   type t = ContextFreeGrammar.t
   type tx = ContextFreeGrammar.tx
 	
@@ -101,7 +104,7 @@ struct
   open RDParserOCaml
   open RDParserJava
   
-	type cfgTree = Leaf of char | Root of char * cfgTree list
+	type cfgTree = Leaf of symbol | Root of symbol * cfgTree list
 
   type t = ContextFreeGrammar.t
   type tx = ContextFreeGrammar.tx
@@ -117,6 +120,8 @@ struct
     accepted: bool option;
     nodes: cfgTree list
   }
+  
+  let bodiesOfHead = RDParser.bodiesOfHead
   
   let leftRecursionRemovalTransform () = "Remove left recursion"
   let leftFactoringTransform () = "Left factoring"
@@ -170,25 +175,11 @@ struct
     doWordGenerateEmptyX (removeDollarFromWord w) [] rep
     
   let printRepresentation (rep:t) =
-    Printf.printf "Alphabet = "; Util.printAlphabet (Set.toList rep.alphabet);
-    Printf.printf "Variables = "; Util.printAlphabet (Set.toList rep.variables);
-    Printf.printf "Initial = %c\n" rep.initial;
-    Printf.printf "Rules {\n"; Set.iter (fun {head=h; body=b} -> Printf.printf "\t%c -> %s\n" h (Util.word2str b)) rep.rules;
+    Printf.printf "Alphabet = "; Util.printAlphabet rep.alphabet;
+    Printf.printf "Variables = "; Util.printAlphabet rep.variables;
+    Printf.printf "Initial = %s\n" (symb2str rep.initial);
+    Printf.printf "Rules {\n"; Set.iter (fun {head=h; body=b} -> Printf.printf "\t%s -> %s\n" (symb2str h) (word2str b)) rep.rules;
     Printf.printf "}\n\n"
-
-	let getFollowRules (testSymbol:symbol) (rep:t) =
-	  Set.filter (fun r -> Set.belongs testSymbol (Set.make r.body) ) rep.rules
-
-  let rec getFollowInfo2 testSymbol h b =
-    match b with
-      | [] -> []
-      | x::xs when x = testSymbol -> (h, xs) :: getFollowInfo2 testSymbol h xs
-      | x::xs -> getFollowInfo2 testSymbol h xs
-
-  (* given a variable X, returns the pairs (Y,w2) *)
-  let getFollowInfo testSymbol rep =
-    let rules = Set.toList (getFollowRules testSymbol rep) in
-    List.flatten (List.map (fun r -> getFollowInfo2 testSymbol r.head r.body) rules )
 
   let rec print_tuples = (*TEST*)
     function
@@ -203,74 +194,7 @@ struct
     | [] -> Printf.printf "";
     | x::xs ->
       Printf.printf "%c" x;
-      print_list xs
-
-  let rec firstX testWord seen simple (rep:t) =
-    match testWord with
-		  | [] -> Set.empty
-			| [x] when Set.belongs x rep.variables -> 
-					let bodies = bodiesOfHead x rep.rules in
-					if Set.belongs x seen 
-					  then Set.empty
-					  else let result = Set.flatMap ( fun b ->
-					          let result = firstX b (Set.add x seen) simple rep in
-                    let empty = if b = []
-                                then Set.make [epsilon]
-                                else Set.empty in
-					          Set.union empty result
-					        ) bodies
-					        in
-                  if Set.exists (fun b -> doWordGenerateEmpty b rep) bodies 
-                    then Set.union result (Set.make [epsilon])
-                    else Set.make (removeEpsilonFromWord (Set.toList result))
-			| x::xs when Set.belongs x rep.alphabet -> 
-					Set.make [x]
-			| x::xs -> Set.union 
-		  						(firstX [x] seen simple rep) 
-									(if doWordGenerateEmpty [x] rep then firstX xs seen simple rep else Set.empty)  
-
-  let first2 (testWord:word) simple (rep:t) =
-    firstX testWord Set.empty simple rep
-
-  let rec first (testWord:word) simple (rep:t) =
-    let first = first2 testWord simple rep in
-    if simple then Set.filter (fun c -> c <> epsilon) first else first
-
-    
-  let rec followX (testSymbol:symbol) seen simple (rep:t) =
-    let pairs = Set.make (getFollowInfo testSymbol rep) in
-    let dollar = if testSymbol = rep.initial
-                  then Set.make [dollar]
-                  else Set.empty
-    in
-    let set = Set.flatMap (fun (y,w) -> 
-          Set.union 
-            (Set.filter (fun s -> s <> epsilon) (first w simple rep))
-            (if (not (Set.belongs y seen) && doWordGenerateEmpty w rep) 
-              then followX y (Set.add testSymbol seen) simple rep
-              else Set.empty
-            )
-    ) pairs 
-    in
-    Set.union set dollar
-    
-  let follow2 testSymbol simple rep =
-    followX testSymbol (Set.make []) simple rep
-  
-  let follow testSymbol simple rep =
-    let follow = follow2 testSymbol simple rep in
-    if simple then Set.filter (fun c -> c <> dollar) follow else follow
-
-
-  let lookahead rule simple (rep:t) =
-    let x = rule.head in
-    let w = rule.body in
-      Set.filter (
-        fun c -> c <> epsilon 
-      ) (Set.union (first2 w simple rep) (if doWordGenerateEmpty w rep then follow2 x simple rep else Set.empty))
-        
-  
-  
+      print_list xs  
   
   (*Given a variable, returns all rules with variable as head*)
   let sameHeadRules (testSymbol:symbol) (rep:t) =
@@ -410,37 +334,37 @@ struct
           match stack with
           | [] -> [] (*Not supposed to happen*)
           | x::xs when x = dollar ->
-                  [newStep ~acceptedString:(Util.word2str currPerm)
-                           ~input:(Util.word2str entry)
-                           ~stack:(Util.word2str stack)
-                           ~recog:(Util.word2str (currPerm))
+                  [newStep ~acceptedString:(word2str currPerm)
+                           ~input:(word2str entry)
+                           ~stack:(word2str stack)
+                           ~recog:(word2str (currPerm))
                            ~accepted:(Some true)
                             simple]
           | x::xs -> (newStep ~var:(Some (List.hd stack))
                               ~term:(Some dollar)
                               ~rBody:(Some [])
-                              ~acceptedString:(Util.word2str currPerm)
-                              ~input:(Util.word2str entry)
-                              ~stack:(Util.word2str stack) 
-                              ~production:(String.make 1 (List.hd stack) ^ " -> " ^ "") 
-                              ~recog:(Util.word2str currPerm)
+                              ~acceptedString:(word2str currPerm)
+                              ~input:(word2str entry)
+                              ~stack:(word2str stack) 
+                              ~production:(symb2str (List.hd stack) ^ " -> " ^ "") 
+                              ~recog:(word2str currPerm)
                               ~nodes:(word2tree [] rep)
                               simple) :: acceptX entry xs parsingTable currPerm simple rep
         else [newStep ~var:(Some (List.hd stack))
                       ~term:(Some dollar)
                       ~rBody:(Some [])
-                      ~acceptedString:(Util.word2str currPerm) 
-                      ~input:(Util.word2str entry)
-                      ~stack:(Util.word2str stack)
-                      ~recog:(Util.word2str currPerm) ~left:(Util.word2str (removeDollarFromWord stack))
+                      ~acceptedString:(word2str currPerm) 
+                      ~input:(word2str entry)
+                      ~stack:(word2str stack)
+                      ~recog:(word2str currPerm) ~left:(word2str (removeDollarFromWord stack))
                       ~accepted:(Some false)
                       simple]
     | x::xs -> match stack with
                 | [] -> [] (*Not supposed to happen*)
-                | [epsilon] -> [newStep ~acceptedString:(Util.word2str currPerm)
-                                ~input:(Util.word2str entry)
-                                ~stack:(Util.word2str stack)
-                                ~recog:(Util.word2str currPerm) ~left:(Util.word2str (removeDollarFromWord stack))
+                | [epsilon] -> [newStep ~acceptedString:(word2str currPerm)
+                                ~input:(word2str entry)
+                                ~stack:(word2str stack)
+                                ~recog:(word2str currPerm) ~left:(word2str (removeDollarFromWord stack))
                                 ~accepted:(Some false)
                                 simple]
                 | x2::xs2 -> if Set.belongs x2 rep.variables
@@ -451,9 +375,9 @@ struct
                                 let substitution = List.assoc_opt (stackChar, entryChar) parsingTableList in
                                 match substitution with
                                   | None -> [newStep ~term:(Some entryChar) ~var:(Some stackChar)
-                                                     ~acceptedString:(Util.word2str currPerm)
-                                                     ~input:(String.make 1 entryChar) ~stack:(Util.word2str stack)
-                                                     ~recog:(Util.word2str currPerm) ~left:(Util.word2str (removeDollarFromWord stack))
+                                                     ~acceptedString:(word2str currPerm)
+                                                     ~input:(symb2str entryChar) ~stack:(word2str stack)
+                                                     ~recog:(word2str currPerm) ~left:(word2str (removeDollarFromWord stack))
                                                      ~accepted:(Some false)
                                                      simple]
                                   | Some s -> let newStack = 
@@ -462,21 +386,21 @@ struct
                                                 | x::xs -> s@xs 
                                               in
                                               (newStep ~term:(Some entryChar) ~var:(Some stackChar) ~rBody:(Some s)
-                                                       ~acceptedString:(Util.word2str currPerm)
-                                                       ~input:(Util.word2str entry) ~stack:(Util.word2str stack) ~production:(String.make 1 (List.nth stack 0) ^ " -> " ^ Util.word2str s)
-                                                       ~recog:(Util.word2str currPerm) ~left:(Util.word2str (removeDollarFromWord stack))
+                                                       ~acceptedString:(word2str currPerm)
+                                                       ~input:(word2str entry) ~stack:(word2str stack) ~production:(symb2str (List.nth stack 0) ^ " -> " ^ word2str s)
+                                                       ~recog:(word2str currPerm) ~left:(word2str (removeDollarFromWord stack))
                                                        ~nodes:(word2tree s rep)
                                                        simple) :: acceptX entry newStack parsingTable currPerm simple rep
                               else if x=x2 
                                   then
                                     let newCurrPerm = currPerm @ [x] in
-                                    (newStep ~acceptedString:(Util.word2str newCurrPerm)
-                                             ~input:(Util.word2str entry) ~stack:(Util.word2str stack)
-                                             ~recog:(Util.word2str newCurrPerm) ~left:(Util.word2str (List.tl (removeDollarFromWord stack)))
+                                    (newStep ~acceptedString:(word2str newCurrPerm)
+                                             ~input:(word2str entry) ~stack:(word2str stack)
+                                             ~recog:(word2str newCurrPerm) ~left:(word2str (List.tl (removeDollarFromWord stack)))
                                              simple) :: acceptX xs xs2 parsingTable newCurrPerm simple rep 
-                                  else [newStep ~acceptedString:(Util.word2str currPerm)
-                                                ~input:(Util.word2str entry) ~stack:(Util.word2str stack) 
-                                                ~recog:(Util.word2str currPerm) ~left:(Util.word2str (removeDollarFromWord stack))
+                                  else [newStep ~acceptedString:(word2str currPerm)
+                                                ~input:(word2str entry) ~stack:(word2str stack) 
+                                                ~recog:(word2str currPerm) ~left:(word2str (removeDollarFromWord stack))
                                                 ~accepted:(Some false)
                                                 simple]
   
@@ -484,7 +408,7 @@ struct
     let word = word @ [dollar] in
     let initial = [rep.initial] @ [dollar] in
     let parsingTable = createParsingTable simple rep in
-      (newStep ~input:(Util.word2str word) ~stack:(Util.word2str initial) ~nodes:[Root(rep.initial,[])] simple)
+      (newStep ~input:(word2str word) ~stack:(word2str initial) ~nodes:[Root(rep.initial,[])] simple)
       ::acceptX word initial parsingTable [] simple rep
 
   let rec acumFixedPoint (f: 'a Set.t -> 'a Set.t) (x: 'a Set.t): 'a Set.t =
@@ -497,7 +421,7 @@ struct
   (*given a rule and a set of productive variables, verifies if given*)
   (*rule is productive*)
   let isRuleProductive r prodVars (rep:t) =
-(*    Printf.printf "\t\t\tisRuleProductive - Prod = %s   prodVars = %s\n" (Util.word2str r) (Util.word2str (Set.toList prodVars));*)
+(*    Printf.printf "\t\t\tisRuleProductive - Prod = %s   prodVars = %s\n" (word2str r) (word2str (Set.toList prodVars));*)
     List.for_all (fun c -> (*Printf.printf "\t\t\t\tc = %c %b\n" c (Set.belongs c rep.alphabet || Set.belongs c prodVars);*) Set.belongs c rep.alphabet || Set.belongs c prodVars) r
       
   (*given a variable and a set of productive variables, verifies if given *)
@@ -505,7 +429,7 @@ struct
   let isSymbolProductive h prodVars (rep:t) =
     let rules = bodiesOfHead h rep.rules in
       Set.exists (fun r -> 
-(*                          Printf.printf "\t\tProduction = %c -> %s\n" h (Util.word2str r);*)
+(*                          Printf.printf "\t\tProduction = %c -> %s\n" h (word2str r);*)
                           isRuleProductive r prodVars rep
                   ) rules
       
@@ -530,7 +454,7 @@ struct
 (*    Printf.printf "\n";*)
     let newRules = Set.filter (fun r -> Set.belongs r.head prodSyms && List.for_all (fun c -> not (Set.belongs c unprodSyms)) r.body) rep.rules in
 (*    Printf.printf "New productions:\n";*)
-(*    Set.iter (fun {head=h;body=b} -> Printf.printf "\t%c -> %s\n" h (Util.word2str b)) newRules;*)
+(*    Set.iter (fun {head=h;body=b} -> Printf.printf "\t%c -> %s\n" h (word2str b)) newRules;*)
       new ContextFreeGrammar.model (Arg.Representation {
 								alphabet = rep.alphabet; (*TODO Get productive alphabet*)
 								variables = prodSyms;
@@ -578,17 +502,18 @@ struct
 (*    accessibleGrammarRewrite (productiveGrammarRewrite rep)#representation*)
 
   let isCFGFullyProductive (rep:t) =
-    productiveSymbols rep = rep.variables
+    Set.equals (productiveSymbols rep) (rep.variables)
 
   let isCFGFullyAccessible (rep:t) =
-    accessibleSymbols rep = Set.union rep.variables rep.alphabet
+    Set.equals (accessibleSymbols rep) (Set.union rep.variables rep.alphabet)
     
   let isClean (rep:t) =
     isCFGFullyProductive rep && isCFGFullyAccessible rep
   
   let getNewVar vs =
     let chars = Set.make ['A'; 'B'; 'C'; 'D'; 'E'; 'F'; 'G'; 'H'; 'I'; 'J'; 'K'; 'L'; 'M'; 'N'; 'O'; 'P'; 'Q'; 'R'; 'S'; 'T'; 'U'; 'V'; 'W'; 'X'; 'Y'; 'Z'] in
-    let acceptableVars = Set.diff chars vs in
+    let symbs = Set.map char2symb chars in
+    let acceptableVars = Set.diff symbs vs in
       Set.nth acceptableVars 0
 
 
@@ -819,7 +744,7 @@ struct
   let rec createLargeList size =
     match size with
     | 0 -> []
-    | _ -> ['a'] @ createLargeList (size-1)
+    | _ -> [symb "a"] @ createLargeList (size-1)
       
   let rec perVarFactoring pair allVars (rep:t) = (* pair = ('A', ['a']) *)
     if pair = Set.empty then Set.empty
@@ -879,16 +804,16 @@ struct
       | x::xs -> let res = combi vars xs in
                   (*Printf.printf "Current body symbol is %c\n" x;
                   Printf.printf "res = \n";
-                  Set.iter (fun l -> Printf.printf "\t%s\n" (Util.word2str l)) res;*)
+                  Set.iter (fun l -> Printf.printf "\t%s\n" (word2str l)) res;*)
                   Set.flatMap (fun v ->
                                 (*(if x = v
                                 then (
                                   Printf.printf "\tx = v (%c = %c)\n" x v;
-                                  Set.iter (fun p -> Printf.printf "\t\t{%s}\n" (Util.word2str p)) (Set.union res (Set.map (fun l -> v::l) res))
+                                  Set.iter (fun p -> Printf.printf "\t\t{%s}\n" (word2str p)) (Set.union res (Set.map (fun l -> v::l) res))
                                 )
                                 else (
                                   Printf.printf "\tx =/= v (%c =/= %c)\n" x v;
-                                  Set.iter (fun p -> Printf.printf "\t\t{%s}\n" (Util.word2str p)) (Set.map (fun l -> x::l) res)
+                                  Set.iter (fun p -> Printf.printf "\t\t{%s}\n" (word2str p)) (Set.map (fun l -> x::l) res)
                                 ));*)
                                 if x = v
                                 then Set.union res (Set.map (fun l -> v::l) res)
@@ -924,7 +849,7 @@ struct
                             fun p -> List.length p.body >= 1
                            ) (Set.diff rep.rules toChangeProds) in
       let newProds = Set.flatMap (changeProds nullableVars) toChangeProds in
-(*      Set.iter (fun p -> Printf.printf "{%c;%s}\n" p.head (Util.word2str p.body) ) newProds;*)
+(*      Set.iter (fun p -> Printf.printf "{%c;%s}\n" p.head (word2str p.body) ) newProds;*)
 (*      if Set.belongs rep.initial nullableVars
       then (
         let newInitial = getNewVar rep.variables in
@@ -1020,7 +945,7 @@ struct
   let getNonUnitProductions var (rep:t) = 
     let prods = bodiesOfHead var rep.rules in
 (*    Printf.printf "var = %c\n" var;*)
-(*    Set.iter (fun p -> Printf.printf "\tIs %c -> %s unit? %b\n" var (Util.word2str p) (isUnitProd p rep)) prods;*)
+(*    Set.iter (fun p -> Printf.printf "\tIs %c -> %s unit? %b\n" var (word2str p) (isUnitProd p rep)) prods;*)
 (*    Printf.printf "\n";*)
     Set.filter (fun p -> not (isUnitProd p rep)) prods
 
@@ -1028,7 +953,7 @@ struct
     let perVarPair pair (rep:t) =
       let (h,b) = pair in
       let nUnitProds = getNonUnitProductions b rep in
-(*      Set.iter (fun p -> Printf.printf "%c -> %s\n" h (Util.word2str p)) nUnitProds;*)
+(*      Set.iter (fun p -> Printf.printf "%c -> %s\n" h (word2str p)) nUnitProds;*)
       Set.toList (Set.map (fun p -> {head = h; body = p}) nUnitProds)
     in
     let perVar pairs (rep:t) =
@@ -1081,7 +1006,6 @@ struct
     method toggleSimplified = Printf.printf "simplified is %b toggling to %b\n" simplified (not simplified);
                               simplified <- not simplified
     
-    method first testWord = first testWord simplified self#representation
     method follow testSymbol = follow testSymbol simplified self#representation
     method lookahead rule = lookahead rule simplified self#representation
     method isLL1 = isLL1 simplified self#representation
@@ -1458,9 +1382,20 @@ struct
     rules : ["S -> AB", "A -> aAA | ", "B -> bBB | "]
   } |}
 
-  let firstPairConversion l = Set.make (List.map (fun (a,b) -> (a, Set.make b)) l)
-  let followPairConversion l = Set.make (List.map (fun (a,b) -> (a, Set.make b)) l)
-  let lookaheadPairConversion l = Set.make (List.map (fun (a,b) -> ((Set.nth (CFGSyntax.parse (Set.make[a])) 0), Set.make b)) l)
+  let firstPairConversion_old l = Set.make (List.map (fun (a,b) -> (a, Set.make b)) l)
+  let followPairConversion_old l = Set.make (List.map (fun (a,b) -> (a, Set.make b)) l)
+  let lookaheadPairConversion_old l = Set.make (List.map (fun (a,b) -> parseLine a, Set.make b) l)
+
+  let firstPairConversion l = Set.make (List.map (fun (a,b) -> (symb a, Set.make (List.map char2symb b))) l)
+  let followPairConversion l = Set.make (List.map (fun (a,b) -> (char2symb a, Set.make (List.map char2symb b))) l)
+  let lookaheadPairConversion l = Set.make (List.map (fun (a,b) -> (Set.nth (parseLine a) 0), Set.make (List.map char2symb b)) l)
+
+  let printRepresentation (rep:ContextFreeGrammar.t) =
+    Printf.printf "Alphabet = "; Util.printAlphabet rep.alphabet;
+    Printf.printf "Variables = "; Util.printAlphabet rep.variables;
+    Printf.printf "Initial = %s\n" (symb2str rep.initial);
+    Printf.printf "Rules {\n"; Set.iter (fun {head=h; body=b} -> Printf.printf "\t%s -> %s\n" (symb2str h) (word2str b)) rep.rules;
+    Printf.printf "}\n\n"
 
   let rec testFunction2 f l c =
     if l = Set.empty then ()
@@ -1468,11 +1403,20 @@ struct
       if (f t = r) then () else Printf.printf "\t\tTest %i fails!\n" c;
       testFunction2 f xs (c+1)
 
+
+	let colorRed = "\027[31m"
+	let colorGreen = "\027[32m"
+	let colorOff = "\027[0m"
+
+(*	let colorRed = ""*)
+(*	let colorGreen = ""*)
+(*	let colorOff = ""*)
+
   let failPrint str =
-    Printf.printf "%s" ("\027[31m" ^ str ^ "\027[0m")
+    Printf.printf "%s" (colorRed ^ str ^ colorOff)
     
   let okPrint str =
-    Printf.printf "%s" ("\027[32m" ^ str ^ "\027[0m")
+    Printf.printf "%s" (colorGreen ^ str ^ colorOff)
 
   let printResult r =
     if r
@@ -1485,14 +1429,31 @@ struct
       Set.iter (fun v -> Printf.printf "%c " v) s;
       Printf.printf "%s" "]) "
     ) t
-  
+    
+  let compareTheseSets s1 s2 =
+    Set.for_all (fun (h1,r1) ->
+      Set.exists (fun (h2,r2) -> h1 = h2 && Set.equals r1 r2) s2
+    ) s1
+
   let testFirst g r =
-    let allResults = Set.map (fun v -> (String.make 1 v, g#first [v])) (g#representation : LL1Grammar.t).variables in
-    r = allResults
+    let allResults = Set.map (fun v -> (v, g#first [v])) (g#representation : LL1Grammar.t).variables in
+(*    Printf.printf "\n\tComparing:";*)
+(*    Set.iter (fun (v,b) -> Printf.printf "\n\t\t%s->\t" (symb2str v); Set.iter (fun s ->  Printf.printf " %s " (symb2str s)) b) r;*)
+(*    Printf.printf "\n\twith:";*)
+(*    Set.iter (fun (v,b) -> Printf.printf "\n\t\t%s->\t" (symb2str v); Set.iter (fun s ->  Printf.printf " %s " (symb2str s)) b) allResults;*)
+(*    Printf.printf "\n";*)
+(*    r = allResults*)
+    compareTheseSets r allResults
 
   let testFollow g r =
     let allResults = Set.map (fun v -> (v, g#follow v)) (g#representation : LL1Grammar.t).variables in
-    r = allResults
+(*    Printf.printf "\n\tComparing:";*)
+(*    Set.iter (fun (v,b) -> Printf.printf "\n\t\t%s->\t" (symb2str v); Set.iter (fun s ->  Printf.printf " %s " (symb2str s)) b) r;*)
+(*    Printf.printf "\n\twith:";*)
+(*    Set.iter (fun (v,b) -> Printf.printf "\n\t\t%s->\t" (symb2str v); Set.iter (fun s ->  Printf.printf " %s " (symb2str s)) b) allResults;*)
+(*    Printf.printf "\n";*)
+(*    r = allResults*)
+    compareTheseSets r allResults
     
   let testLookahead g r =
     let rep = (g#representation : LL1Grammar.t) in
@@ -1504,10 +1465,17 @@ struct
         ) rules
       ) rep.variables 
     in
-    r = allResults
+(*    Printf.printf "\n\tComparing:";*)
+(*    Set.iter (fun ({head=h;body=b},r) -> Printf.printf "\n\t\t%s->%s\t" (symb2str h) (word2str b); Set.iter (fun s ->  Printf.printf " %s " (symb2str s)) r) r;*)
+(*    Printf.printf "\n\twith:";*)
+(*    Set.iter (fun ({head=h;body=b},r) -> Printf.printf "\n\t\t%s->%s\t" (symb2str h) (word2str b); Set.iter (fun s ->  Printf.printf " %s " (symb2str s)) r) allResults;*)
+(*    Printf.printf "\n";*)
+(*    r = allResults*)
+    compareTheseSets r allResults
 
   let testFunction1 f r =
     f = r
+
 
 
 (*	let test0 () =*)
@@ -1515,11 +1483,14 @@ struct
 (*		let j = m#toJSon in*)
 (*			JSon.show j*)
 
+	let dollar = '$'
+	let epsilon = '~'
+
   let testExample1 () =
     Printf.printf "Example1 test: [";
-    let first = [ ("S", ['a'; 'b'; 'c']); ("A", ['a'; epsilon]); ("B", ['b'; epsilon]); ("C", ['c']); ("D", ['d'; epsilon]); ("E", ['e'; epsilon]) ] in
+    let first = [ ("S", ['a'; 'b'; 'c']); ("A", ['a'; '~']); ("B", ['b'; '~']); ("C", ['c']); ("D", ['d'; '~']); ("E", ['e'; '~']) ] in
     let first2 = firstPairConversion first in
-    let follow = [ ('S', [dollar]); ('A', ['b'; 'c']); ('B', ['c']); ('C', ['d'; 'e'; dollar]); ('D', ['e'; dollar]); ('E', [dollar]) ] in
+    let follow = [ ('S', ['$']); ('A', ['b'; 'c']); ('B', ['c']); ('C', ['d'; 'e'; '$']); ('D', ['e'; '$']); ('E', ['$']) ] in
     let follow2 = followPairConversion follow in
     let lookahead = [ ("S->ABCDE", ['a'; 'b'; 'c']); 
                       ("A->a", ['a']); ("A->", ['b'; 'c']);
@@ -1692,6 +1663,8 @@ struct
       printResult (testFunction1 m#isLL1 false);
       printResult (testFunction1 m#isFullyAccessible false);
     let transformed = new LL1Grammar.model (Arg.Representation m#accessibleRewrite#representation) in
+(*      printRepresentation m#representation;*)
+(*      printRepresentation transformed#representation;*)
       printResult (testFunction1 transformed#isFullyAccessible true);
     Printf.printf "]\n"
     
@@ -2204,44 +2177,43 @@ struct
     let transformed = new LL1Grammar.model (Arg.Representation m#removeEmptyProductions.grammar#representation) in
       printResult (testFunction1 transformed#hasEmptyProductions false);
     Printf.printf "]\n"
-    
+    ;;
     
 	let runAll =
-		if Util.testing(active) then (
-			Util.header "LL1GrammarTests";
-      testExample1 ();
-      testExample2 ();
-      testExample3 ();
-      testExample4 ();
-      testExample5 ();
-      testExample6 ();
-      testDissertation ();
-      testNFGrammar ();
-      testAccessible1 ();
-      testAccessible2 ();
-      testProductive1 ();
-      testProductive2 ();
-      cleanGrammar1 ();
-      testDirectRecursion1 ();
-      testDirectRecursion2 ();
-      testIndirectRecursion1 ();
-      testIndirectRecursion2 ();
-      testIndirectRecursion3 ();
-      testIndirectRecursion4 ();
-      testIndirectRecursion5 ();
-      testLeftFactoring1 ();
-      testLeftFactoring2 ();
-      testLeftFactoring3 ();
-      testLeftFactoring4 ();
-      testLeftFactoring5 ();
-      testLeftFactoring6 ();
-      testUnitRemoval1 ();
-      testUnitRemoval2 ();
-      testUnitRemoval3 ();
-      testUnitRemoval4 ();
-      testUnitRemoval5 ();
-      testEmptyRemoval1 ();
-      testEmptyRemoval2 ();
-      testEmptyRemoval3 ()
-		)
+		if Util.testing active "LL1Grammar" then begin
+			testExample1 ();
+			testExample2 ();
+			testExample3 ();
+			testExample4 ();
+			testExample5 ();
+			testExample6 ();
+			testDissertation ();
+			testNFGrammar ();
+			testAccessible1 ();
+			testAccessible2 ();
+			testProductive1 ();
+			testProductive2 ();
+			cleanGrammar1 ();
+			testDirectRecursion1 ();
+			testDirectRecursion2 ();
+			testIndirectRecursion1 ();
+			testIndirectRecursion2 ();
+			testIndirectRecursion3 ();
+			testIndirectRecursion4 ();
+			testIndirectRecursion5 ();
+			testLeftFactoring1 ();
+			testLeftFactoring2 ();
+			testLeftFactoring3 ();
+			testLeftFactoring4 ();
+			testLeftFactoring5 ();
+			testLeftFactoring6 ();
+			testUnitRemoval1 ();
+			testUnitRemoval2 ();
+			testUnitRemoval3 ();
+			testUnitRemoval4 ();
+			testUnitRemoval5 ();
+			testEmptyRemoval1 ();
+			testEmptyRemoval2 ();
+			testEmptyRemoval3 ()
+		end
 end

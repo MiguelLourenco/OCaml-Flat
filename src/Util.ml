@@ -28,21 +28,18 @@
  *
  * TODO: Check if this is the right place for some of this functions.
  *)
+ 
+open BasicTypes
 
 module type UtilSig =
 sig
-	val ch2str : char -> string
-	val str2word : string -> char list
-	val word2str : char list -> string
-	val strings2words : string list -> char list list
-	val words2strings : char list list -> string list
 	val stripChars : string -> string -> string
 	val stripHead : string -> string
-	val char2DisplayString : char -> string
+	val symbol2DisplayString : symbol -> string
 	val string2DisplayString : string -> string
-	val charList2DisplayString : char list -> string
+	val symbolList2DisplayString : symbol list -> string
 	val stringList2DisplayString : string list -> string
-	val transitions2DisplayString : (string*char*string) list -> string
+	val transitions2DisplayString : (string*symbol*string) list -> string
 
 	val flatMap:  ('a -> 'b list) -> 'a list -> 'b list
 	val concatAll : 'a list -> 'a list list -> 'a list list
@@ -54,43 +51,19 @@ sig
 	val print : string list -> unit
 	val println : string list -> unit
 	val header : string -> unit
-	val printAlphabet : char list -> unit
-	val printStates : string list -> unit
-	val printTransition : string -> char -> string -> unit
-	val printWords : char list list -> unit
-	val printStrings : string list -> unit
+	val printAlphabet : symbols -> unit
+	val printStates : states -> unit
+	val printTransition : string -> symbol -> string -> unit
+	val printWords : words -> unit
+	val printStrings : string set -> unit
 	val show : string -> unit
 
 	val handleHomeDir : string -> string
-	val testing : bool -> bool
+	val testing : bool -> string -> bool
 end
 
 module Util : UtilSig =
 struct
-	let ch2str c =
-		Char.escaped c
-
-	(* let str2word s =      //only ocaml >= 4.06
-		List.init (String.length s) (String.get s) ; *)
-	let str2word s =
-		let n = String.length s in
-		let rec iterStr i =
-			if i < n then s.[i]::iterStr (i+1)
-			else []
-		in
-			iterStr 0
-
-	let word2str w =
-		let buf = Buffer.create 16 in
-		let () = List.iter (Buffer.add_char buf) w in
-			Buffer.contents buf
-
-	let strings2words ss =
-		List.map str2word ss
-		
-	let words2strings ws =
-		List.map word2str ws
-
 	let stripChars s cs =
 		let len = String.length s in
 		let j = ref 0 in
@@ -130,23 +103,23 @@ struct
 			done;
 			Bytes.to_string (Bytes.sub res 0 !j)
 
-	let char2DisplayString c =
-		"'" ^ (Char.escaped c) ^ "'"
+	let symbol2DisplayString s =
+		"\"" ^ symb2str s ^ "\""
 
 	let string2DisplayString s =
 		"\"" ^ s ^ "\""
-
-	let charList2DisplayString l =
-		let l1 = List.map (fun c -> (Char.escaped c)) l in
+	
+	let symbolList2DisplayString l =
+		let l1 = List.map (fun c -> (symb2str c)) l in
 		let core = String.concat "'; '" l1 in
-			"['" ^ core ^ "']"
+			"['" ^ core ^ "']"	
 	
 	let stringList2DisplayString l =
 		let core = String.concat "\"; \"" l in
 			"[\"" ^ core ^ "\"]"
 
 	let transition2DisplayString (a,b,c) =
-		Printf.sprintf "(\"%s\", '%c', \"%s\")" a b c
+		Printf.sprintf "(\"%s\", '%s', \"%s\")" a (symb2str b) c
 	
 	let transitions2DisplayString l =
 		let l1 = List.map transition2DisplayString l in
@@ -202,31 +175,31 @@ struct
 		print_newline()
 
 	let header (str: string) =
-		println ["----------"] ;
+		println ["------------------------------------------------"] ;
 		println [str]
 
-	let printAlphabet (alf:char list) =
-		List.iter (fun x -> print [ch2str x; ", "]) alf;
+	let printAlphabet (a: symbols) =
+		Set.iter (fun x -> print [symb2str x; ", "]) a;
 		println []
 
-	let printStates (st:string list) =
-		List.iter (fun x -> print [x; ", "]) st;
+	let printStates (st:states) =
+		Set.iter (fun x -> print [x; ", "]) st;
 		println []
 
-	let printTransition (a:string) (b:char) (c:string) =
-		println ["("; a; ", "; ch2str b; ", "; c; ")"]
+	let printTransition (a:string) (b:symbol) (c:string) =
+		println ["("; a; ", "; symb2str b; ", "; c; ")"]
 
-	let printWord (w:char list) =
+	let printWord (w:word) =
 		println ["'"; word2str w; "'"]
 
-	let printWords (l: char list list) =
-		List.iter printWord l
+	let printWords (s: words) =
+		Set.iter printWord s
 		
 	let printString (s: string) =
 		println ["'"; s; "'"]
 
-	let printStrings (l: string list) =
-		List.iter printString l
+	let printStrings (s: string set) =
+		Set.iter printString s
 		
 	let show s =
 		print_string ("|" ^ s ^ "|\n")
@@ -245,8 +218,13 @@ struct
 					"/home/" ^ String.sub s 1 (n - 1)
 			else s
 
-	let testing(active) =
-		active && try ignore (Sys.getenv("TESTING")); true with _ -> false
+	let testing active moduleName =
+		let forceActive = false in
+		let regularActive = (active && try ignore (Sys.getenv("TESTING")); true with _ -> false) in
+		let active = forceActive || regularActive in
+			if active then
+				header ("### Testing " ^ moduleName ^ " ###");
+			active
 end
 
 module UtilTests =
@@ -257,14 +235,13 @@ struct
 		Util.println [Util.loadFile "examples/fa_abc.json"]
 
 	let test1 () =
-		let a = Util.word2str ['e';'r';'t'] in
-		let b = Util.word2str ['4';'5';'y'] in
+		let a = word2str [symb "e";symb "r";symb "t"] in
+		let b = word2str [symb "4";symb "5";symb "y"] in
 			Util.println [a; b]
 
 	let runAll : unit =
-		if Util.testing(active) then (
-			Util.header "UtilTests";
+		if Util.testing active "Util" then begin
 			test0 ();
 			test1 ()
-		)
+		end
 end
