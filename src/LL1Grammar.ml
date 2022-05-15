@@ -329,18 +329,19 @@ struct
     match entry with
     | [] -> [] (*Not supposed to happen*)
     | x::xs when x = dollar ->
-        if doWordGenerateEmpty stack rep
-        then 
-          match stack with
+          (match stack with
           | [] -> [] (*Not supposed to happen*)
-          | x::xs when x = dollar ->
-                  [newStep ~acceptedString:(word2str currPerm)
-                           ~input:(word2str entry)
-                           ~stack:(word2str stack)
-                           ~recog:(word2str (currPerm))
-                           ~accepted:(Some true)
-                            simple]
-          | x::xs -> (newStep ~var:(Some (List.hd stack))
+          | x::xs -> if doWordGenerateEmpty [x] rep
+                      then
+                        (
+                          if x = dollar
+                          then [newStep ~acceptedString:(word2str currPerm)
+                               ~input:(word2str entry)
+                               ~stack:(word2str stack)
+                               ~recog:(word2str (currPerm))
+                               ~accepted:(Some true)
+                                simple]
+                          else (newStep ~var:(Some (List.hd stack))
                               ~term:(Some dollar)
                               ~rBody:(Some [])
                               ~acceptedString:(word2str currPerm)
@@ -350,7 +351,8 @@ struct
                               ~recog:(word2str currPerm)
                               ~nodes:(word2tree [] rep)
                               simple) :: acceptX entry xs parsingTable currPerm simple rep
-        else [newStep ~var:(Some (List.hd stack))
+                        )
+                      else [newStep ~var:(Some (List.hd stack))
                       ~term:(Some dollar)
                       ~rBody:(Some [])
                       ~acceptedString:(word2str currPerm) 
@@ -359,6 +361,7 @@ struct
                       ~recog:(word2str currPerm) ~left:(word2str (removeDollarFromWord stack))
                       ~accepted:(Some false)
                       simple]
+             )
     | x::xs -> match stack with
                 | [] -> [] (*Not supposed to happen*)
                 | [epsilon] -> [newStep ~acceptedString:(word2str currPerm)
