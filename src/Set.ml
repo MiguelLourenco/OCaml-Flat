@@ -148,9 +148,10 @@ struct
 	
 	let for_all: ('a -> bool) -> 'a t -> bool = List.for_all
 	let exists: ('a -> bool) -> 'a t -> bool = List.exists
+(* The following three functions use the equality '=' and may not work well for sets of sets *)
 	let belongs: 'a -> 'a t -> bool = List.mem
 	let subset (s1: 'a t) (s2: 'a t): bool = List.for_all (fun v -> belongs v s2) s1
-	let equals (s1: 'a t) (s2: 'a t): bool = s1 = s2 || subset s1 s2 && subset s2 s1
+	let equals (s1: 'a t) (s2: 'a t): bool = size s1 = size s2 && subset s1 s2
 
 	let find: ('a -> bool) -> 'a t -> 'a = List.find
 	let find_opt: ('a -> bool) -> 'a t -> 'a option = List.find_opt	
