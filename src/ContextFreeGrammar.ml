@@ -50,6 +50,11 @@ sig
 		rules : CFGSyntax.rules
 	}
 	val modelDesignation : string
+	
+	val first : word -> bool -> t -> symbol Set.t
+	val follow : symbol -> bool -> t -> symbol Set.t
+	val lookahead : CFGSyntax.rule -> bool -> t -> symbol Set.t
+	
 	class model :
 		(t,tx) Arg.alternatives ->
 			object
@@ -63,6 +68,9 @@ sig
 
 				method tracing: unit
 				method isRegular: bool
+				method first: word -> symbol Set.t
+			  method follow: symbol -> symbol Set.t
+			  method lookahead: CFGSyntax.rule -> symbol Set.t
 				method accept: word -> bool
 				method acceptWithTracing: word -> unit
 				method generate: int -> words
@@ -210,8 +218,109 @@ struct
 			(Util.symbol2DisplayString repx.initial)
 			(Util.stringList2DisplayString repx.rules)
 
+
+  let removeEpsilonFromWord w =
+    List.filter (fun c -> c <> epsilon) w
+
+  let removeDollarFromWord w =
+    List.filter (fun c -> c <> dollar) w
+
+  let rec doWordGenerateEmptyX w seen (rep:t) =
+    let rec doGenerateEmpty x =
+      if List.mem x seen
+      then false
+      else(
+		    let bodies = bodiesOfHead x rep.rules in
+		    Set.exists (fun b -> doWordGenerateEmptyX b (x::seen) rep) bodies 
+		  )
+		in      
+      List.for_all doGenerateEmpty w
+
+  let doWordGenerateEmpty w (rep:t) =
+    doWordGenerateEmptyX (removeDollarFromWord w) [] rep
+
+  let rec firstX testWord seen simple (rep:t) =
+    match testWord with
+		  | [] -> Set.empty
+			| [x] when Set.belongs x rep.variables -> 
+					let bodies = bodiesOfHead x rep.rules in
+					if Set.belongs x seen 
+					  then Set.empty
+					  else let result = Set.flatMap ( fun b ->
+					          let result = firstX b (Set.add x seen) simple rep in
+                    let empty = if b = []
+                                then Set.make [epsilon]
+                                else Set.empty in
+					          Set.union empty result
+					        ) bodies
+					        in
+                  if Set.exists (fun b -> doWordGenerateEmpty b rep) bodies 
+                    then Set.union result (Set.make [epsilon])
+                    else Set.make (removeEpsilonFromWord (Set.toList result))
+			| x::xs when Set.belongs x rep.alphabet -> 
+					Set.make [x]
+			| x::xs -> Set.union 
+		  						(firstX [x] seen simple rep) 
+									(if doWordGenerateEmpty [x] rep then firstX xs seen simple rep else Set.empty)  
+
+  let first2 (testWord:word) simple (rep:t) =
+    firstX testWord Set.empty simple rep
+
+  let rec first (testWord:word) simple (rep:t) =
+    let first = first2 testWord simple rep in
+    if simple then Set.filter (fun c -> c <> epsilon) first else first
+
+	let getFollowRules (testSymbol:symbol) (rep:t) =
+	  Set.filter (fun r -> Set.belongs testSymbol (Set.make r.body) ) rep.rules
+
+  let rec getFollowInfo2 testSymbol h b =
+    match b with
+      | [] -> []
+      | x::xs when x = testSymbol -> (h, xs) :: getFollowInfo2 testSymbol h xs
+      | x::xs -> getFollowInfo2 testSymbol h xs
+
+  (* given a variable X, returns the pairs (Y,w2) *)
+  let getFollowInfo testSymbol rep =
+    let rules = Set.toList (getFollowRules testSymbol rep) in
+    List.flatten (List.map (fun r -> getFollowInfo2 testSymbol r.head r.body) rules )
+
+    
+  let rec followX (testSymbol:symbol) seen simple (rep:t) =
+    let pairs = Set.make (getFollowInfo testSymbol rep) in
+    let dollar = if testSymbol = rep.initial
+                  then Set.make [dollar]
+                  else Set.empty
+    in
+    let set = Set.flatMap (fun (y,w) -> 
+          Set.union 
+            (Set.filter (fun s -> s <> epsilon) (first w simple rep))
+            (if (not (Set.belongs y seen) && doWordGenerateEmpty w rep) 
+              then followX y (Set.add testSymbol seen) simple rep
+              else Set.empty
+            )
+    ) pairs 
+    in
+    Set.union set dollar
+    
+  let follow2 testSymbol simple rep =
+    followX testSymbol (Set.make []) simple rep
+  
+  let follow testSymbol simple rep =
+    let follow = follow2 testSymbol simple rep in
+    if simple then Set.filter (fun c -> c <> dollar) follow else follow
+
+
+  let lookahead rule simple (rep:t) =
+    let x = rule.head in
+    let w = rule.body in
+      Set.filter (
+        fun c -> c <> epsilon 
+      ) (Set.union (first2 w simple rep) (if doWordGenerateEmpty w rep then follow2 x simple rep else Set.empty))
+
 	class model (arg: (t,tx) Arg.alternatives) =
 		object(self) inherit Model.model arg modelDesignation as super
+
+      val mutable simplified = false
 
 			val representation: t =
 				match arg with
@@ -316,9 +425,12 @@ struct
 					in
 						Set.for_all (fun b -> isLeftLinearX b) bs
 				in
-
 					isRightLinear bs || isLeftLinear bs
 
+
+      method first testWord = first testWord simplified self#representation
+      method follow testSymbol = follow testSymbol simplified self#representation
+      method lookahead rule = lookahead rule simplified self#representation
 
 			(* This method checks if the given word is accepted by the grammar
 			*

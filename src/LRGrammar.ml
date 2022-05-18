@@ -20,6 +20,10 @@ sig
 				method tracing: unit
 				method isRegular: bool
 				method accept: word -> bool
+				method first: word -> symbol Set.t
+			  method follow: symbol -> symbol Set.t
+			  method lookahead: CFGSyntax.rule -> symbol Set.t
+
 				method acceptWithTracing: word -> unit
 				method generate: int -> words
 

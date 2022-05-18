@@ -35,6 +35,7 @@ open Exercise
 open FiniteAutomaton
 open RegularExpression
 open ContextFreeGrammar
+open LL1Grammar
 open PolyModel
 
 module TopLevel =
@@ -316,6 +317,143 @@ struct
 		let a = new ContextFreeGrammar.model (Arg.Representation cfg) in
 		let b =	cfg2re a in
 			re_convertTo b#representation
+
+  (* LL1 functions *)
+
+  let ll1_toggleSimplified cfg =
+    let cfg = cfg_convertFrom cfg in
+    let a = new LL1Grammar.model (Representation cfg) in
+      a#toggleSimplified
+
+  let ll1_first cfg w =
+    let cfg = cfg_convertFrom cfg in
+    let a = new LL1Grammar.model (Representation cfg) in
+    let w = str2word w in
+		  Set.toList (a#first w)
+
+  let ll1_follow cfg w =
+    let cfg = cfg_convertFrom cfg in
+    let a = new LL1Grammar.model (Representation cfg) in
+		  Set.toList (a#follow w)
+
+  let ll1_lookahead cfg rl =
+    let cfg = cfg_convertFrom cfg in
+    let a = new LL1Grammar.model (Representation cfg) in
+		  Set.toList (a#lookahead rl)
+		  
+  let ll1_isLL1 cfg =
+    let cfg = cfg_convertFrom cfg in
+    let a = new LL1Grammar.model (Representation cfg) in
+		  a#isLL1
+
+  let ll1_isLeftRecursive cfg =
+    let cfg = cfg_convertFrom cfg in
+    let a = new LL1Grammar.model (Representation cfg) in
+		  a#isLeftRecursive
+
+  let ll1_createParsingTable cfg =
+    let cfg = cfg_convertFrom cfg in
+    let a = new LL1Grammar.model (Representation cfg) in
+      Set.toList a#createParsingTable
+
+  let ll1_hasParsingTableConflict cfg =
+    let cfg = cfg_convertFrom cfg in
+    let a = new LL1Grammar.model (Representation cfg) in
+      a#hasParsingTableConflict
+
+  let ll1_accept w cfg =
+    let cfg = cfg_convertFrom cfg in
+    let w = str2word w in
+    let a = new LL1Grammar.model (Representation cfg) in
+      a#acceptZ w
+
+	let ll1_productiveSymbols cfg = 
+    let cfg = cfg_convertFrom cfg in
+    let a = new LL1Grammar.model (Representation cfg) in
+      Set.toList a#productiveSymbols
+
+	let ll1_accessibleSymbols cfg = 
+    let cfg = cfg_convertFrom cfg in
+    let a = new LL1Grammar.model (Representation cfg) in
+      Set.toList a#accessibleSymbols
+
+  let ll1_productiveRewrite cfg =
+    let cfg = cfg_convertFrom cfg in
+    let a = new LL1Grammar.model (Representation cfg) in
+      cfg_convertTo (a#productiveRewrite)#representation
+      
+  let ll1_accessibleRewrite cfg =
+    let cfg = cfg_convertFrom cfg in
+    let a = new LL1Grammar.model (Representation cfg) in
+      cfg_convertTo (a#accessibleRewrite)#representation
+      
+  let ll1_clean cfg =
+    let cfg = cfg_convertFrom cfg in
+    let a = new LL1Grammar.model (Representation cfg) in
+      List.map (fun {tType = t; grammar = g} -> (t, cfg_convertTo g#representation)) a#clean
+
+  let ll1_isFullyProductive cfg =
+    let cfg = cfg_convertFrom cfg in
+    let a = new LL1Grammar.model (Representation cfg) in
+      a#isFullyProductive
+      
+  let ll1_isFullyAccessible cfg =
+    let cfg = cfg_convertFrom cfg in
+    let a = new LL1Grammar.model (Representation cfg) in
+      a#isFullyAccessible
+      
+  let ll1_isClean cfg =
+    let cfg = cfg_convertFrom cfg in
+    let a = new LL1Grammar.model (Representation cfg) in
+      a#isClean
+
+  let ll1_removeLeftRecursion cfg =
+    let cfg = cfg_convertFrom cfg in
+    let a = new LL1Grammar.model (Representation cfg) in
+      cfg_convertTo (a#removeLeftRecursion).grammar#representation
+
+  let ll1_removeDirectLeftRecursion cfg =
+    let cfg = cfg_convertFrom cfg in
+    let a = new LL1Grammar.model (Representation cfg) in
+      cfg_convertTo (a#removeDirectLeftRecursion)#representation
+
+  let ll1_leftFactoring cfg =
+    let cfg = cfg_convertFrom cfg in
+    let a = new LL1Grammar.model (Representation cfg) in
+      cfg_convertTo (a#leftFactoring).grammar#representation
+
+  let ll1_isLeftFactoring cfg =
+    let cfg = cfg_convertFrom cfg in
+    let a = new LL1Grammar.model (Representation cfg) in
+      a#isLeftFactoring
+      
+  let ll1_leftCorner s cfg =
+    let cfg = cfg_convertFrom cfg in
+    let a = new LL1Grammar.model (Representation cfg) in
+      Set.toList (a#leftCorner s)
+  
+  let ll1_removeEmptyProductions cfg =
+    let cfg = cfg_convertFrom cfg in
+    let a = new LL1Grammar.model (Representation cfg) in
+      cfg_convertTo (a#removeEmptyProductions).grammar#representation
+
+  let ll1_removeUnitProductions cfg =
+    let cfg = cfg_convertFrom cfg in
+    let a = new LL1Grammar.model (Representation cfg) in
+      cfg_convertTo (a#removeUnitProductions).grammar#representation
+  
+  let ll1_generateRecursiveDescendentParser lang cfg =
+    let cfg = cfg_convertFrom cfg in
+    let a = new LL1Grammar.model (Representation cfg) in
+      Printf.printf "%s" (a#generateRecursiveDescendentParser lang)
+
+  let ll1_transformToLL1 cfg =
+    let cfg = cfg_convertFrom cfg in
+    let a = new LL1Grammar.model (Representation cfg) in
+      List.map ( fun {tType = t; grammar = g} -> 
+        (t, cfg_convertTo g#representation)
+               )a#transformToLL1
+
 
 	(* Exercise functions *)
 

@@ -64,9 +64,9 @@ struct
 
     method printFunctions vars rep =
       if vars = Set.empty then ""
-      else
-        self#symbolFunction (Set.hd vars) rep ^
-        (self#printFunctions (Set.tl vars) rep)
+      else let (x,xs) = Set.cut vars in
+        self#symbolFunction x rep ^
+        (self#printFunctions xs rep)
  
     (**Method that prints the programs main function.**)
     method virtual mainFunction : symbol -> string
