@@ -29,6 +29,8 @@
  * using unit tests.
  *)
 
+open BasicTypes
+
 module type ExerciseSig =
 sig
 	type t = {
@@ -65,7 +67,7 @@ struct
 	}
 	
 	let fromJSon j =
-		if j = JSon.JNull || not (JSon.hasField j "kind") then {
+		if JSon.isNull j || not (JSon.hasField j "kind") then {
 			problem = "_";
 			inside = Set.empty;
 			outside = Set.empty;
@@ -73,24 +75,17 @@ struct
 		}
 		else {
 			problem = JSon.fieldString j "problem";
-			inside = Set.map Util.str2word (JSon.fieldStringSet j "inside");
-			outside = Set.map Util.str2word (JSon.fieldStringSet j "outside");
+			inside = Set.map str2word (JSon.fieldStringSet j "inside");
+			outside = Set.map str2word (JSon.fieldStringSet j "outside");
 			properties = JSon.fieldStringSet j "properties"
 		}
 	
 	let toJSon (rep: t): JSon.t =
-		let open JSon in
-		JAssoc [
-			("problem", JString rep.problem );
-			("inside", JList (List.map
-							(fun w -> JString (Util.word2str w))
-							(Set.toList rep.inside)));
-			("outside", JList (List.map
-							(fun w -> JString (Util.word2str w))
-							(Set.toList rep.outside)));
-			("properties", JList (List.map
-							(fun w -> JString w)
-							(Set.toList rep.properties)))
+		JSon.makeAssoc [
+			("problem", JSon.makeString rep.problem);
+			("inside", JSon.makeStringSet (Set.map word2str rep.inside));
+			("outside", JSon.makeStringSet (Set.map word2str rep.outside));
+			("properties", JSon.makeStringSet rep.properties)
 		]
 
 	class exercise (arg: (t,t) Arg.alternatives ) =
@@ -129,10 +124,9 @@ struct
 			JSon.show je
 
 	let runAll =
-		if Util.testing(active) then (
-			Util.header "ExercicesTests";
+		if Util.testing active "Exercices" then begin
 			test0 ()
-		)
+		end
 end
 
 

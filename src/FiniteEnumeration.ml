@@ -27,6 +27,7 @@
  * Description: Finite language, directly defined as a set of words.
  *)
 
+open BasicTypes
 
 module FiniteEnumeration =
 struct
@@ -38,24 +39,22 @@ struct
 	let modelDesignation = "finite enumeration"
 
 	let internalize (fe: tx): t =
-		Set.make (Util.strings2words fe)
+		Set.make (strings2words fe)
 
 	let externalize (fe: t): tx =
-		Util.words2strings (Set.toList fe)
+		words2strings (Set.toList fe)
 
 	let fromJSon j =
-		if j = JSon.JNull || not (JSon.hasField j "kind") then
+		if JSon.isNull j || not (JSon.hasField j "kind") then
 			Set.empty
 		else
 			let strings = JSon.fieldStringSet j "words" in
-			let words = Set.map Util.str2word strings in
+			let words = Set.map str2word strings in
 				words
 	
 	let toJSon (rep: t): JSon.t =
-		let open JSon in
-		let strings = Util.words2strings (Set.toList rep) in
-		JAssoc [
-			("words", JList (List.map (fun s -> JString s) strings))
+		JSon.makeAssoc [
+			("words", JSon.makeStringSet (Set.map word2str rep))
 		]
 
 	let displayHeader (name: string) (xTypeName: string) =
@@ -165,15 +164,13 @@ struct
 		let fe = new FiniteEnumeration.model (Arg.Text fe_colors) in
 		let e = new Exercise.exercise (Arg.Text exer_colors) in
 		let (ins,outs,props) = fe#checkExerciseFailures e in	
-			Util.printWords (Set.toList ins);
-			Util.printWords (Set.toList outs);
-			Util.printStrings (Set.toList props)
+			Util.printWords ins;
+			Util.printWords outs;
+			Util.printStrings props
 		
 	let runAll =
-		if Util.testing(active) then (
-			Util.header "FiniteEnumerationTests";
+		if Util.testing active "FiniteEnumeration" then begin
 			test0 ();
-
-		)
+		end
 end
 

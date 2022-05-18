@@ -190,8 +190,9 @@ struct
 			rules : [	"S -> 1S0 | P",
 						"P -> 0P1 | ~" ]
 		} |}
-
+		
 	let cfg_balanced = {| {
+
 			kind : "context free grammar",
 			description : "Language of balanced square bracket parentheses",
 			name : "cfg_balanced",
@@ -301,7 +302,7 @@ struct
 
 	let jsonExample name =
 		let j = JSon.parse (example name) in
-			if j = JSon.JNull then
+			if JSon.isNull j then
 				Error.show "example" name;
 			j
 

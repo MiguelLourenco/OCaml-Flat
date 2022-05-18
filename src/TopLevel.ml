@@ -30,18 +30,19 @@
  * TODO: Improve.
  *)
 
+open BasicTypes
+open Exercise
+open FiniteAutomaton
+open RegularExpression
+open ContextFreeGrammar
+open PolyModel
+
 module TopLevel =
 struct
-	open Exercise
-	open FiniteAutomaton
-	open RegularExpression
-	open ContextFreeGrammar
-	open PolyModel
-
 (* Toplevel types *)
 
 	type finiteAutomaton = {
-			alphabet: char list;
+			alphabet: symbol list;
 			states: state list;
 			initialState: state;
 			transitions: FiniteAutomaton.transition list;
@@ -51,9 +52,9 @@ struct
 	type regularExpression = string
 
 	type contextFreeGrammar = {
-			alphabet: char list;
-			variables: char list;
-			initial: char;
+			alphabet: symbol list;
+			variables: symbol list;
+			initial: symbol;
 			rules: string list
 		}
 
@@ -109,8 +110,8 @@ struct
 			}
 
 	let exer_convertTo (exer: Exercise.t): exercise =
-		let inws = Set.map (fun w -> Util.word2str w) exer.inside in
-		let outws = Set.map (fun w -> Util.word2str w) exer.outside in
+		let inws = Set.map (fun w -> word2str w) exer.inside in
+		let outws = Set.map (fun w -> word2str w) exer.outside in
 			{
 				inside = Set.toList inws;
 				outside = Set.toList outws;
@@ -118,8 +119,8 @@ struct
 			}
 
 	let exer_convertFrom (exer: exercise) : Exercise.t =
-		let inws = List.map (fun s -> Util.str2word s) exer.inside in
-		let outws = List.map (fun s -> Util.str2word s) exer.outside in
+		let inws = List.map (fun s -> str2word s) exer.inside in
+		let outws = List.map (fun s -> str2word s) exer.outside in
 			{
 				problem = "";
 				inside = Set.make inws;
@@ -128,8 +129,8 @@ struct
 			}
 
 	let exer_convertFailures ins outs props =
-		let ins = Set.map (fun w -> Util.word2str w) ins in
-		let outs = Set.map (fun w -> Util.word2str w) outs in
+		let ins = Set.map (fun w -> word2str w) ins in
+		let outs = Set.map (fun w -> word2str w) outs in
 			(Set.toList ins, Set.toList outs, Set.toList props)
 
 
@@ -153,19 +154,19 @@ struct
 	let fa_accept fa w =
 		let fa = fa_convertFrom fa in
 		let a = new FiniteAutomaton.model (Arg.Representation fa) in
-		let w = Util.str2word w in
+		let w = str2word w in
 			a#accept w
 
 	let fa_traceAccept fa w =
 		let fa = fa_convertFrom fa in
 		let a = new FiniteAutomaton.model (Arg.Representation fa) in
-		let w = Util.str2word w in
+		let w = str2word w in
 			a#acceptWithTracing w
 
 	let fa_generate fa l =
 		let fa = fa_convertFrom fa in
 		let a = new FiniteAutomaton.model (Arg.Representation fa) in
-		let b = Set.map (fun w -> Util.word2str w) (a#generate l) in
+		let b = Set.map (fun w -> word2str w) (a#generate l) in
 			Set.toList b
 
 	let fa_reachable fa =
@@ -240,19 +241,19 @@ struct
 	let re_accept re w =
 		let re = re_convertFrom re in
 		let a = new RegularExpression.model (Arg.Representation re) in
-		let w = Util.str2word w in
+		let w = str2word w in
 			a#accept w
 
 	let re_trace re w =
 		let re = re_convertFrom re in
 		let a = new RegularExpression.model (Arg.Representation re) in
-		let w = Util.str2word w in
+		let w = str2word w in
 			a#allTrees w
 
 	let re_generate re l =
 		let re = re_convertFrom re in
 		let a = new RegularExpression.model (Arg.Representation re) in
-		let b = Set.map (fun w -> Util.word2str w) (a#generate l) in
+		let b = Set.map (fun w -> word2str w) (a#generate l) in
 			Set.toList b
 
 	let re_simplify re =
@@ -289,19 +290,19 @@ struct
 	let cfg_accept cfg w =
 		let cfg = cfg_convertFrom cfg in
 		let a = new ContextFreeGrammar.model (Arg.Representation cfg) in
-		let w = Util.str2word w in
+		let w = str2word w in
 			a#accept w
 
 	let cfg_trace cfg w =
 		let cfg = cfg_convertFrom cfg in
 		let a = new ContextFreeGrammar.model (Arg.Representation cfg) in
-		let w = Util.str2word w in
+		let w = str2word w in
 			a#acceptWithTracing w
 
 	let cfg_generate cfg l =
 		let cfg = cfg_convertFrom cfg in
 		let a = new ContextFreeGrammar.model (Arg.Representation cfg) in
-		let b = Set.map (fun w -> Util.word2str w) (a#generate l) in
+		let b = Set.map (fun w -> word2str w) (a#generate l) in
 			Set.toList b
 
 	let cfg_toFA cfg =

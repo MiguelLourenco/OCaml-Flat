@@ -31,6 +31,8 @@
  *
  * TODO: Cleanup.
  *)
+ 
+open BasicTypes
 
 module type PolyModelSig =
 sig
@@ -263,8 +265,9 @@ struct
 			let n = !k in
 			let () = k:= n + 1 in
 			let ascii = 65 + n in
-			if ascii < 65 || ascii > 90 then 'A'
-				else Char.chr ascii
+			if ascii < 65 || ascii > 90
+			then char2symb 'A'
+			else char2symb (Char.chr ascii)
 		in
 
 		(*
@@ -428,7 +431,7 @@ struct
 
 		let alp = rep.alphabet in
 		let vrs = rep.variables in
-		let toStr = Util.ch2str in
+		let toStr = symb2str in
 
 		(* This name will always be unique in the generated automaton *)
 		let accSt = "AccSt" in
@@ -544,8 +547,7 @@ struct
 			JSon.show res#toJSon
 
 	let runAll =
-		if Util.testing(active) then (
-			Util.header "PolyModelTests";
+		if Util.testing active "PolyModel" then begin
 			testSimplify ()
-		)
+		end
 end

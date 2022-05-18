@@ -32,6 +32,8 @@
  * TODO: More cleanup.
  *)
 
+open BasicTypes
+
 module type ContextFreeGrammarSig =
 sig
 	type cfgTree = Leaf of char | Root of char * cfgTree list
@@ -116,32 +118,29 @@ struct
 	}
 
 	let fromJSon j =
-		if j = JSon.JNull || not (JSon.hasField j "kind") then {
+		if JSon.isNull j || not (JSon.hasField j "kind") then {
 			alphabet = Set.empty;
-			variables = Set.make ['_'];
-			initial = '_';
+			variables = Set.make [draftVar];
+			initial = draftVar;
 			rules = Set.empty;
 		}
 		else {
-			alphabet = JSon.fieldCharSet j "alphabet";
-			variables = JSon.fieldCharSet j "variables";
-			initial = (JSon.fieldString j "initial").[0];
-			rules = CFGSyntax.parse (Set.make (JSon.fieldStringList j "rules"));
+			alphabet = JSon.fieldSymbolSet j "alphabet";
+			variables = JSon.fieldSymbolSet j "variables";
+			initial = JSon.fieldSymbol j "initial";
+			rules = CFGSyntax.parse (JSon.fieldStringSet j "rules");
 		}
 	
-	let ruleToJSon {head=h; body=b} =
-		let open JSon in
-		let aa = String.concat "" (List.map (fun x -> Util.ch2str x) b) in
-		let hh = Util.ch2str h in
-			JString (hh^" -> "^aa)
+	let rule2str {head=h; body=b} =
+		let bb = if b = [] then [epsilon] else b in
+			(symb2str h) ^ " -> " ^ (word2str bb)
 
 	let toJSon (rep: t): JSon.t =
-		let open JSon in
-		JAssoc [
-			("alphabet", JList (List.map (fun s -> JString (Util.ch2str s)) (Set.toList rep.alphabet)));
-			("variables", JList (List.map (fun s -> JString (Util.ch2str s)) (Set.toList rep.variables)));
-			("initial", JString (Util.ch2str rep.initial) );
-			("rules", JList (List.map ruleToJSon (Set.toList rep.rules)));
+		JSon.makeAssoc [
+			("alphabet", JSon.makeSymbolSet rep.alphabet);
+			("variables", JSon.makeSymbolSet rep.variables);
+			("initial", JSon.makeSymbol rep.initial);
+			("rules", JSon.makeStringSet (Set.map rule2str rep.rules))
 		]
 
 	(*------Auxiliary functions---------*)
@@ -206,9 +205,9 @@ struct
 		}
 		|zzz}
 			(displayHeader name xTypeName)
-			(Util.charList2DisplayString repx.alphabet)
-			(Util.charList2DisplayString repx.variables)
-			(Util.char2DisplayString repx.initial)
+			(Util.symbolList2DisplayString repx.alphabet)
+			(Util.symbolList2DisplayString repx.variables)
+			(Util.symbol2DisplayString repx.initial)
 			(Util.stringList2DisplayString repx.rules)
 
 	class model (arg: (t,tx) Arg.alternatives) =
@@ -271,7 +270,7 @@ struct
 				;
 
 				if not isInitialValid then
-					Error.error (Util.ch2str representation.initial)
+					Error.error (symb2str representation.initial)
 						"Symbol initial does not belong to the set of all variables" ()
 				;
 
@@ -494,7 +493,7 @@ struct
 
 				let printWset ws =
 					Util.print ["["];
-					Set.iter (fun w -> Util.print [Util.word2str w; ";"]) ws;
+					Set.iter (fun w -> Util.print [word2str w; ";"]) ws;
 					Util.println ["]"];
 				in
 
@@ -571,7 +570,7 @@ end
 module ContextFreeGrammarTests: sig end =
 struct
 	let active = false
-
+	
 	let test0 () =
 		let m = new ContextFreeGrammar.model (Arg.Predef "cfg_simple") in
 		let j = m#toJSon in
@@ -581,7 +580,7 @@ struct
 		let m = new ContextFreeGrammar.model (Arg.Predef "cfg_balanced") in
 		let e = new Exercise.exercise (Arg.Predef "exer_balanced") in
 		let result = m#checkExercise e in
-			if result then Util.print ["it works"] else Util.print ["it does not work"]
+			if result then Util.println ["it works"] else Util.println ["it does not work"]
 
 	let testRegular () =
 		let m = new ContextFreeGrammar.model (Arg.Predef "cfg_simple") in
@@ -598,17 +597,21 @@ struct
 
 	let testTrace () =
 		let m = new ContextFreeGrammar.model (Arg.Predef "cfg_simple") in
-			m#acceptWithTracing ['0';'1']
+			m#acceptWithTracing (word "01")
 
 	let testGen () =
 		let m = new ContextFreeGrammar.model (Arg.Predef "cfg_simple") in
 		let ws = m#generate 4 in
-			Util.printWords (Set.toList ws)
+			Util.printWords ws
 
 	let runAll =
-		if Util.testing(active) then (
-			Util.header "ContextFreeGrammarTests";
+		if Util.testing active "ContextFreeGrammar" then begin
+			test0 ();
 			test1 ();
-		)
+			testRegular ();
+			testAcc ();
+			testTrace ();
+			testGen ()
+		end
 end
 
