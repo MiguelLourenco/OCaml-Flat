@@ -1436,7 +1436,7 @@ struct
   let compareTheseSets s1 s2 =
     Set.for_all (fun (h1,r1) ->
       Set.exists (fun (h2,r2) -> h1 = h2 && Set.equals r1 r2) s2
-    ) s1
+    ) s1 && Set.size s1 = Set.size s2
 
   let testFirst g r =
     let allResults = Set.map (fun v -> (v, g#first [v])) (g#representation : LL1Grammar.t).variables in
