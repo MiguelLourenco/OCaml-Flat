@@ -39,6 +39,9 @@ sig
 	val toList : 'a t -> 'a list
 	val empty : 'a t
 	
+	val makeSorted : 'a list -> 'a t
+	val sort: 'a t -> 'a t
+
 	val isEmpty : 'a t -> bool
 	val size : 'a t -> int
 	val compare_sizes: 'a t -> 'b t -> int
@@ -104,7 +107,6 @@ end
 module Set : SetSig =
 struct
 	type 'a t = 'a list
-	let makeOld l = List.sort_uniq compare l
 	let delX (v :'a) = List.filter (fun x -> x <> v)
 	
 	let rec make (l: 'a list): 'a t =
@@ -113,6 +115,9 @@ struct
 		| x::xs -> x::make (delX x xs)
 	let toList (s: 'a t): 'a list = s
 	let empty: 'a t = []
+	
+	let makeSorted (l: 'a list): 'a t = List.sort_uniq compare l
+	let sort (s: 'a t): 'a list = List.sort compare s
 
 	let isEmpty (s: 'a t): bool = s = []
 	let size: 'a t -> int = List.length
@@ -145,7 +150,7 @@ struct
 	let exists: ('a -> bool) -> 'a t -> bool = List.exists
 	let belongs: 'a -> 'a t -> bool = List.mem
 	let subset (s1: 'a t) (s2: 'a t): bool = List.for_all (fun v -> belongs v s2) s1
-	let equals (s1: 'a t) (s2: 'a t): bool = subset s1 s2 && subset s2 s1
+	let equals (s1: 'a t) (s2: 'a t): bool = s1 = s2 || subset s1 s2 && subset s2 s1
 
 	let find: ('a -> bool) -> 'a t -> 'a = List.find
 	let find_opt: ('a -> bool) -> 'a t -> 'a option = List.find_opt	
