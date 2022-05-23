@@ -50,6 +50,7 @@ sig
 	val hd : 'a t -> 'a
 	val tl : 'a t -> 'a t
 	val cut : 'a t -> 'a * 'a t
+	val match_ : 'a t -> (unit -> 'b) -> ('a -> 'a t -> 'b) -> 'b
 	val nth : 'a t -> int -> 'a
 	val nth_opt : 'a t -> int -> 'a option
 	val init : int -> (int -> 'a) -> 'a t
@@ -108,7 +109,7 @@ module Set : SetSig =
 struct
 	type 'a t = 'a list
 	let delX (v :'a) = List.filter (fun x -> x <> v)
-	
+
 	let rec make (l: 'a list): 'a t =
 		match l with
 		| [] -> []
@@ -130,6 +131,7 @@ struct
 	let hd: 'a t -> 'a = List.hd
 	let tl: 'a t -> 'a t = List.tl
 	let cut (s: 'a t) = (List.hd s, List.tl s)
+	let match_ s e n = if isEmpty s then e () else n (hd s) (tl s)
 	let nth: 'a t -> int -> 'a = List.nth
 	let nth_opt: 'a t -> int -> 'a option = List.nth_opt
 	let init: int -> (int -> 'a) -> 'a t = List.init
@@ -151,7 +153,7 @@ struct
 (* The following three functions use the equality '=' and may not work well for sets of sets *)
 	let belongs: 'a -> 'a t -> bool = List.mem
 	let subset (s1: 'a t) (s2: 'a t): bool = List.for_all (fun v -> belongs v s2) s1
-	let equals (s1: 'a t) (s2: 'a t): bool = size s1 = size s2 && subset s1 s2
+	let equals (s1: 'a t) (s2: 'a t): bool = compare_sizes s1 s2 = 0 && subset s1 s2
 
 	let find: ('a -> bool) -> 'a t -> 'a = List.find
 	let find_opt: ('a -> bool) -> 'a t -> 'a option = List.find_opt	
@@ -218,7 +220,7 @@ struct
 	let proj3_12 s3 = map (fun (a,b,_) -> (a,b)) s3
 	let proj3_23 s3 = map (fun (_,b,c) -> (b,c)) s3
 
-	let test (): int list list =	(* Set.test ();; *)
+	let test (): int list list =	(* Set.test () *)
 		toList (star (make[ [1]; [2;3]]) 4)
 end
 
@@ -290,6 +292,8 @@ struct
 	let allDistinct f (s: 'a t) = Set.allDistinct f s
 	let hasDuplicates (s: 'a t): bool = Set.hasDuplicates s
 	let validate (l: ('a*'a) list) (culprit: string): 'a t = failwith "UPSet.validate"
-	let test () =	(* UPSet.test ();; *)
+	let test () =	(* UPSet.test () *)
 		toList (make [(1,1);(1,2);(2,2);(3,2);(3,2);(2,3)])
 end
+
+
