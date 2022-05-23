@@ -1043,7 +1043,7 @@ struct
 
   open CFGSyntax
 
-	let active = true
+	let active = false
 
   let example1 = {| {
 	  kind : "context free grammar", 
