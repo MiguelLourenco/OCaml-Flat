@@ -62,17 +62,30 @@ sig
 (*	val fieldStringList : t -> string -> string list *)
 	val fieldStringSet : t -> string -> string set
 
-(*	val fieldTriplesList : t -> string -> (string * symbol * string) list *)
-	val fieldTriplesSet : t -> string -> (string * symbol * string) set
+	val fieldState : t -> string -> state
+(*	val fieldStateList : t -> string -> state list *)
+	val fieldStateSet : t -> string -> state set
+	
+	val fieldBool : t -> string -> bool
+
+(*	val fieldTriplesList : t -> string -> (state * symbol * state) list *)
+	val fieldTriplesSet : t -> string -> (state * symbol * state) set
+
+(*	val fieldQuintupletsList : t -> string -> (state * symbol * symbol * state * symbol set) list *)
+	val fieldQuintupletsSet : t -> string -> (state * symbol * symbol * state * word) set
 
 	val append: t -> t -> t
 	
-    val makeSymbol : symbol -> t
+	val makeSymbol : symbol -> t
 	val makeSymbolSet : symbol set -> t
-    val makeString : string -> t
-    val makeStringSet : string set -> t
-    val makeTriplesSet : (string * symbol * string) set -> t
-    val makeAssoc : (string * t) list -> t
+	val makeString : string -> t
+	val makeStringSet : string set -> t
+	val makeState : state -> t
+	val makeStateSet : states -> t
+	val makeBool : bool -> t
+    val makeTriplesSet : (state * symbol * state) set -> t
+    val makeQuintupletsSet : (state * symbol * symbol * state * word) set -> t
+	val makeAssoc : (string * t) list -> t
 end
 
 module JSon : JSonSig =
@@ -347,6 +360,7 @@ struct
 	let error = Error.error
 	
 	let dummySymb = symb "#"
+	let dummyState = state "#"
 
 	let fieldSymbol (j: t) (field: string): symbol =
 		match j |> getField field with
@@ -389,22 +403,70 @@ struct
 	let fieldStringSet (j: t) (field: string) =
 		Set.validate (fieldStringList j field) field
 
-	let asStringSymbolString (j: t) (field: string) =
-		match j with
-		| JList [a; b; c] -> (asString a field, asSymbol b field, asString c field)
-		| _ -> error field "Malformed triple" ("#",dummySymb,"#")
 
+	let asState (j: t) (field: string) =
+		match j with
+		| JString s -> state s
+		| _ -> error field "Expected state" dummyState
+
+	let fieldState (j: t) (field: string) =
+		state (fieldString j field)
+		
+	let fieldStateList (j: t) (field: string) =
+		List.map state (fieldStringList j field)
+		
+	let fieldStateSet (j: t) (field: string) =
+		Set.validate (fieldStateList j field) field
+
+
+	let fieldBool (j: t) (field: string) =
+		match fieldString j field with
+		| "false" -> false
+		| "true" -> true
+		| _ -> error field "Expected bool" false
+
+
+	let asStateSymbolState (j: t) (field: string) =
+		match j with
+		| JList [a; b; c] -> (asState a field, asSymbol b field, asState c field)
+		| _ -> error field "Malformed triple" (dummyState,dummySymb,dummyState)
 
 	let fieldTriplesList (j: t) (field: string) =
 		match j |> getField field with
 		| JNull -> error field "Missing field" []
-		| JList l -> List.map (fun j -> asStringSymbolString j field) l
+		| JList l -> List.map (fun j -> asStateSymbolState j field) l
 		| _ -> []
 
 	let fieldTriplesSet (j: t) (field: string) =
 		Set.validate (fieldTriplesList j field) field
+
+
+	let asWord (j: t) (field: string): word =
+		match j with
+			| JString s -> str2word s
+			| _ -> error field "Expected word" []
+
+	let asStateSymbolSymbolStateWord (j: t) (field: string) =
+		match j with
+		| JList [a; b; c; d; e] ->
+			(	asState a field,
+				asSymbol b field,
+				asSymbol c field,
+				asState d field,
+				asWord e field
+			)
+		| _ -> error field "Malformed quintuplet" (dummyState,dummySymb,dummySymb,dummyState,[])
 	
-	
+	let fieldQuintupletsList (j: t) (field: string) =
+		match j |> getField field with
+		| JNull -> error field "Missing field" []
+		| JList l -> List.map (fun j -> asStateSymbolSymbolStateWord j field) l
+		| _ -> []
+
+	let fieldQuintupletsSet (j: t) (field: string) =
+		Set.validate (fieldQuintupletsList j field) field
+
+
 	let append j1 j2 =
 		match j1, j2 with
 		| JAssoc l1, JAssoc l2 -> JAssoc (l1 @ l2)
@@ -421,12 +483,27 @@ struct
 
 	let makeStringSet s =
 		JList (List.map makeString (Set.toList s))
+		
+	let makeState s =
+		makeString (state2str s)
+		
+	let makeStateSet s =
+		JList (List.map makeState (Set.toList s))
 
+	let makeBool b =
+		makeString (if b then "true" else "false")
+		
 	let makeTriplesSet s =
 		JList (List.map (fun (a,b,c) ->
-				JList [JString a; JString (symb2str b); JString c]) (Set.toList s))
+				JList [JString (state2str a); JString (symb2str b);
+						JString (state2str c)]) (Set.toList s))
 
-    let makeAssoc l =
+	let makeQuintupletsSet s =
+		JList (List.map (fun (a,b,c,d,e) ->
+				JList [JString (state2str a); JString (symb2str b); JString (symb2str c);
+						JString (state2str d); JString (word2str e)]) (Set.toList s))
+
+	let makeAssoc l =
 		JAssoc l
 end
 

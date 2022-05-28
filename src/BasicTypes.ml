@@ -33,18 +33,12 @@ module type BasicTypesSig =
 sig
 	type 'a set = 'a Set.t
 	
+	(* SYMBOLS *)
 	type symbol (* opaque *)
 	type symbols = symbol set
-	type symbolList = symbol list
 	type variable = symbol
 	type variables = variable set
-	type word = symbol list
-	type words = word set
-	type state = string
-	type states = state set
-	type property = string
-	type properties = property set
-
+	
 	val char2symb : char -> symbol
 	val str2symb : string -> symbol
 	val symb2str : symbol -> string
@@ -52,12 +46,30 @@ sig
 	val epsilon : symbol
 	val dollar : symbol
 	val draftVar : variable
+	val symbols : string -> symbols
+	
+	(* WORDS *)
+	type word = symbol list
+	type words = word set
 	val str2word : string -> word
 	val word : string -> word
-	val symbols : string -> symbols
 	val word2str : word -> string
 	val strings2words : string list -> word list
 	val words2strings : word list -> string list
+	
+	(* STATES *)
+	(* type state *) (* opaque *)
+	type state = string
+	type states = state set
+	val state2str : state -> string
+	val str2state : string -> state
+	val state : string -> state
+	val draftState: state
+	
+	(* PROPERTIES *)	
+	type property = string
+	type properties = property set
+
 end
 
 module BasicTypes : BasicTypesSig =
@@ -71,6 +83,8 @@ struct
 	let symb2str s: string = s
 	*)
 
+	(* SYMBOLS *)
+	
 	type symbol = char
 	let char2symb c: symbol = c
 	let str2symb s: symbol = if String.length s = 1 then String.get s 0 else '?'
@@ -79,7 +93,6 @@ struct
 	let symb s: symbol  = str2symb s	
 	
 	type symbols = symbol set
-	type symbolList = symbol list
 	
 	let epsilon: symbol = symb "~" (* used for representing the empty transitions *)
 	let dollar: symbol = symb "$"
@@ -89,15 +102,11 @@ struct
 
 	let draftVar: variable = symb "_"
 
+	(* WORDS *)
+
 	type word = symbol list
 	type words = word set
 	
-	type state = string
-	type states = state set
-
-	type property = string
-	type properties = property set
-
 	(* let str2word s =      //only ocaml >= 4.06
 		List.init (String.length s) (String.get s) ; *)
 	let str2word (s:string): word =
@@ -110,8 +119,6 @@ struct
 
 	let word s = str2word s
 
-	let symbols s = Set.make (word s)
-
 	let word2str (w:word): string =
 		let strs = List.map symb2str w in
 			String.concat "" strs
@@ -122,4 +129,22 @@ struct
 	let words2strings ws =
 		List.map word2str ws
 
+	let symbols s = Set.make (word s)
+
+	(* STATES *)
+	
+	type state = string
+	type states = state set
+
+	let state2str s: string = s
+
+	let str2state s: state = s
+	let state s = str2state s
+
+	let draftState: state = state "_"
+
+	(* PROPERTIES *)	
+	
+	type property = string
+	type properties = property set
 end

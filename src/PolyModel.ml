@@ -97,8 +97,9 @@ struct
 			let n = !k in
 			let () = k:= n + 1 in
 				(*easy way of having all single digit state names have a zero before their actual number*)
-				if n > 9 then "new_St" ^ (string_of_int n)
+				let name = if n > 9 then "new_St" ^ (string_of_int n)
 							else "new_St0" ^ (string_of_int n) in
+					str2state name in
 
 
 		let rec compile (rep: RegExpSyntax.t) : FiniteAutomaton.t =
@@ -431,28 +432,28 @@ struct
 
 		let alp = rep.alphabet in
 		let vrs = rep.variables in
-		let toStr = symb2str in
+		let toState sy = state (symb2str sy) in
 
 		(* This name will always be unique in the generated automaton *)
-		let accSt = "AccSt" in
+		let accSt = state "AccSt" in
 
 		let alphabet = alp in
-		let states = Set.map (fun v -> toStr v) rep.variables in
+		let states = Set.map (fun v -> toState v) rep.variables in
 		let states = Set.add accSt states in
-		let initialState = toStr rep.initial in
+		let initialState = toState rep.initial in
 		let acceptStates = Set.make [accSt] in
 
 
 
 		let ruleToTrans rh rb =
 			match rb with
-				| [s;v] when Set.belongs s alp && Set.belongs v vrs	-> Set.make [(toStr rh, s, toStr v)]
+				| [s;v] when Set.belongs s alp && Set.belongs v vrs	-> Set.make [(toState rh, s, toState v)]
 
-				| [v] when Set.belongs v vrs -> Set.make [(toStr rh, epsilon, toStr v)]
+				| [v] when Set.belongs v vrs -> Set.make [(toState rh, epsilon, toState v)]
 
-				| [s] when Set.belongs s alp -> Set.make [(toStr rh, s, accSt)]
+				| [s] when Set.belongs s alp -> Set.make [(toState rh, s, accSt)]
 
-				| [e] when e = epsilon -> Set.make [(toStr rh, epsilon, accSt)]
+				| [e] when e = epsilon -> Set.make [(toState rh, epsilon, accSt)]
 
 				| _ -> Set.empty
 		in
@@ -460,8 +461,11 @@ struct
 		let transitions = Set.flatMap (fun r -> ruleToTrans r.head r.body) rep.rules in
 
 		let open FiniteAutomaton in
-		let fa = {alphabet = alphabet; states = states; initialState = initialState;
-					transitions = transitions; acceptStates = acceptStates} in
+		let fa = {alphabet = alphabet;
+		states = states;
+		initialState = initialState;
+					transitions = transitions;
+					acceptStates = acceptStates} in
 
 			new FiniteAutomaton.model (Arg.Representation (fa))
 

@@ -84,6 +84,7 @@ module type FiniteAutomatonSig = sig
 				method minimize : model
 				method isMinimized : bool
 
+			(* Exercices support *)
 				method checkProperty : string -> bool
 				method checkExercise : Exercise.exercise -> bool
 				method checkExerciseFailures : Exercise.exercise
@@ -145,26 +146,26 @@ struct
 	let fromJSon (j: JSon.t): t =
 		if JSon.isNull j || not (JSon.hasField j "kind") then {
 			alphabet = Set.empty;
-			states = Set.make ["_"];
-			initialState = "_";
+			states = Set.make [draftState];
+			initialState = draftState;
 			transitions = Set.empty;
 			acceptStates = Set.empty
 		}
 		else {
 			alphabet = JSon.fieldSymbolSet j "alphabet";
-			states = JSon.fieldStringSet j "states";
-			initialState = JSon.fieldString j "initialState";
+			states = JSon.fieldStateSet j "states";
+			initialState = JSon.fieldState j "initialState";
 			transitions = JSon.fieldTriplesSet j "transitions";
-			acceptStates = JSon.fieldStringSet j "acceptStates"
+			acceptStates = JSon.fieldStateSet j "acceptStates"
 		}
 
 	let toJSon (rep: t): JSon.t =
 		JSon.makeAssoc [
 			("alphabet", JSon.makeSymbolSet rep.alphabet);
-			("states", JSon.makeStringSet rep.states);
-			("initialState", JSon.makeString rep.initialState);
+			("states", JSon.makeStateSet rep.states);
+			("initialState", JSon.makeState rep.initialState);
 			("transitions", JSon.makeTriplesSet rep.transitions);
-			("acceptStates", JSon.makeStringSet rep.acceptStates)
+			("acceptStates", JSon.makeStateSet rep.acceptStates)
 		]
 
 	(*------Auxiliary functions---------*)
@@ -176,7 +177,9 @@ struct
 	let transitionGet23 trns = Set.map (fun (_,b,c) -> (b,c)) trns
 
 	(* fuse all states into a new state *)
-	let fuseStates sts = String.concat "_" sts
+	let fuseStates sts =
+		let l = List.map state2str sts in
+			state (String.concat "_" l)
 
 
 	(* checks if set ts has at least one transition from state st through symbol sy *)
@@ -216,10 +219,10 @@ struct
 		|zzz}
 			(displayHeader name xTypeName)
 			(Util.symbolList2DisplayString repx.alphabet)
-			(Util.stringList2DisplayString repx.states)
-			(Util.string2DisplayString repx.initialState)
+			(Util.stateList2DisplayString repx.states)
+			(Util.state2DisplayString repx.initialState)
 			(Util.transitions2DisplayString repx.transitions)
-			(Util.stringList2DisplayString repx.acceptStates)
+			(Util.stateList2DisplayString repx.acceptStates)
 	
 	class model (arg: (t,tx) Arg.alternatives) =
 		object(self) inherit Model.model arg modelDesignation as super
@@ -368,7 +371,7 @@ struct
 
 				let printRes w sts =
 					Util.print ["('"; word2str w; "',["];
-					Set.iter (fun st -> Util.print [st; ";"]) sts;
+					Set.iter (fun st -> Util.print [state2str st; ";"]) sts;
 					Util.print ["])"];
 
 				in
@@ -696,8 +699,6 @@ struct
 				in
 
 				agroup equivList
-
-
 
 
 			(**

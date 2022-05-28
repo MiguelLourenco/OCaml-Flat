@@ -37,9 +37,11 @@ sig
 	val stripHead : string -> string
 	val symbol2DisplayString : symbol -> string
 	val string2DisplayString : string -> string
+	val state2DisplayString : state -> string
 	val symbolList2DisplayString : symbol list -> string
 	val stringList2DisplayString : string list -> string
-	val transitions2DisplayString : (string*symbol*string) list -> string
+	val stateList2DisplayString : state list -> string
+	val transitions2DisplayString : (state*symbol*state) list -> string
 
 	val flatMap:  ('a -> 'b list) -> 'a list -> 'b list
 	val concatAll : 'a list -> 'a list list -> 'a list list
@@ -109,6 +111,9 @@ struct
 	let string2DisplayString s =
 		"\"" ^ s ^ "\""
 	
+	let state2DisplayString s =
+		"\"" ^ (state2str s) ^ "\""
+	
 	let symbolList2DisplayString l =
 		let l1 = List.map (fun c -> (symb2str c)) l in
 		let core = String.concat "'; '" l1 in
@@ -117,9 +122,14 @@ struct
 	let stringList2DisplayString l =
 		let core = String.concat "\"; \"" l in
 			"[\"" ^ core ^ "\"]"
+	
+	let stateList2DisplayString sl =
+		let l = List.map state2str sl in
+		let core = String.concat "\"; \"" l in
+			"[\"" ^ core ^ "\"]"
 
 	let transition2DisplayString (a,b,c) =
-		Printf.sprintf "(\"%s\", '%s', \"%s\")" a (symb2str b) c
+		Printf.sprintf "(\"%s\", '%s', \"%s\")" (state2str a) (symb2str b) (state2str a)
 	
 	let transitions2DisplayString l =
 		let l1 = List.map transition2DisplayString l in
@@ -183,7 +193,7 @@ struct
 		println []
 
 	let printStates (st:states) =
-		Set.iter (fun x -> print [x; ", "]) st;
+		Set.iter (fun x -> print [state2str x; ", "]) st;
 		println []
 
 	let printTransition (a:string) (b:symbol) (c:string) =

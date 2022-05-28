@@ -33,7 +33,7 @@ open Scanner
 
 module type CFGSyntaxSig =
 sig
-	type rule = { head : symbol; body : symbol list; }
+	type rule = { head : symbol; body : word; }
 	type rules = rule Set.t
 
 	val parse : string Set.t -> rule Set.t
@@ -45,7 +45,7 @@ end
 
 module CFGSyntax: CFGSyntaxSig =
 struct
-	type rule = { head : symbol; body : symbol list; }
+	type rule = { head : symbol; body : word; }
 	type rules = rule Set.t
 
 	let isWhite c =
@@ -64,7 +64,7 @@ struct
 					else invalid "Bad neck\n"
 			| _ -> invalid "Bad neck\n"
 
-	let rec parseBody (): symbolList list =
+	let rec parseBody (): word list =
 		match curr() with
 			| ' ' -> [[]]
 			| '|' -> skip(); []::parseBody ()
