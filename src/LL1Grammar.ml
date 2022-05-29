@@ -379,7 +379,7 @@ struct
                                 match substitution with
                                   | None -> [newStep ~term:(Some entryChar) ~var:(Some stackChar)
                                                      ~acceptedString:(word2str currPerm)
-                                                     ~input:(symb2str entryChar) ~stack:(word2str stack)
+                                                     ~input:(word2str entry) ~stack:(word2str stack)
                                                      ~recog:(word2str currPerm) ~left:(word2str (removeDollarFromWord stack))
                                                      ~accepted:(Some false)
                                                      simple]
