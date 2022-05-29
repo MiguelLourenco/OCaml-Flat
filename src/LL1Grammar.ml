@@ -227,7 +227,7 @@ struct
         match body with
         | [] -> false
         | x::xs when x = head || Set.belongs x seen -> true
-        | x::xs -> leftRecursionTest x (Set.add x seen) rep in
+        | x::xs -> leftRecursionTest x (Set.cons x seen) rep in
         
       List.exists (fun x -> x = true) (List.map (fun x -> leftRecursionTest2 initial x seen rep) ruleBodies)
 
@@ -471,7 +471,7 @@ struct
   (*given a rule and a set of accessible symbols, adds all symbols from the*)
   (*rule to the set*)
   let ruleAccessibleSymbols r aSymbols =
-    Set.flatten (Set.make (List.map (fun s -> Set.add s aSymbols) r))
+    Set.flatten (Set.make (List.map (fun s -> Set.cons s aSymbols) r))
 
   let rulesAccessibleSymbols h aSymbols (rep:t) =
     let rules = bodiesOfHead h rep.rules in
@@ -531,7 +531,7 @@ struct
         then Set.make [x]
         else Set.union 
               (Set.make [x])
-              (Set.flatMap (fun b -> (leftCorner2 b (Set.add x seen) rep)) (bodiesOfHead x rep.rules))
+              (Set.flatMap (fun b -> (leftCorner2 b (Set.cons x seen) rep)) (bodiesOfHead x rep.rules))
 
   let leftCorner symbol rep =
     leftCorner2 [symbol] Set.empty rep
@@ -595,11 +595,11 @@ struct
         let newVar = getNewVar nV in
 (*        Printf.printf "\tNew variable is %c\n" newVar;*)
         let recRulesRewriteTmp = Set.map (fun r -> recursiveRuleRewrite r newVar) recursiveRs in
-        let recRulesRewrite = Set.add ( {head = newVar; body = []} ) recRulesRewriteTmp in
+        let recRulesRewrite = Set.cons ( {head = newVar; body = []} ) recRulesRewriteTmp in
         let nRecRulesRewrite = Set.map (fun r -> nRecursiveRuleRewrite r newVar) nRecursiveRs in
         let newRules = Set.union recRulesRewrite nRecRulesRewrite in
 (*        print_rules (Set.toList newRules);*)
-          Set.union newRules (removeDLRFromVar xs drs ndrs (Set.add newVar nV))
+          Set.union newRules (removeDLRFromVar xs drs ndrs (Set.cons newVar nV))
     in
     
     let leftRecursiveRules = Set.filter (fun r -> hasRuleDirectLeftRecursion r) rep.rules in
@@ -766,7 +766,7 @@ struct
       let newHeadRulesSet = Set.map (fun r -> { head = newVar; body = newRuleFactoring r.body prefix } ) prefixedRules in
       let rules = Set.union nonPrefixedRules (Set.union newSameHeadRulesSet newHeadRulesSet) in
 (*     print_rules (Set.toList rules);*)
-        Set.union rules (perVarFactoring xs (Set.add newVar allVars) rep)
+        Set.union rules (perVarFactoring xs (Set.cons newVar allVars) rep)
   
   let getPerVarLCPResult (rep:t) = 
     let perVarLCPResult = Set.map (fun v -> (v, perVarLCP v rep.rules)) rep.variables in
@@ -860,7 +860,7 @@ struct
         let newProds = Set.union newInitialProds newProds in
         new ContextFreeGrammar.model (Arg.Representation {
 	        alphabet = rep.alphabet;
-	        variables = Set.add newInitial rep.variables;
+	        variables = Set.cons newInitial rep.variables;
 	        initial = newInitial;
 	        rules = Set.union newProds unchangedProds
 	      } )
@@ -924,8 +924,8 @@ struct
                           if List.length r = 1 && Set.belongs (List.hd r) rep.variables
                           then (
                             if Set.belongs (List.hd r) seen
-                            then []@findUnitPairX origVar (List.hd r) (Set.add var seen) rep
-                            else r@findUnitPairX origVar (List.hd r) (Set.add var seen) rep
+                            then []@findUnitPairX origVar (List.hd r) (Set.cons var seen) rep
+                            else r@findUnitPairX origVar (List.hd r) (Set.cons var seen) rep
                           )
                           else  findUnitPairAux r rep 
                       ) (Set.toList rules)
