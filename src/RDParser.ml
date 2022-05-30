@@ -113,10 +113,10 @@ struct
     method symbolFunction s (rep:ContextFreeGrammar.t) =
       let open CFGSyntax in
       let rec getNextTerminals rule = 
-        Printf.printf "\tGetting lookahead for rules";
-        List.iter (fun r -> Printf.printf " %s " r) (CFGSyntax.toStringList (Set.make [rule]));
-        Printf.printf "\n";
-        Set.iter (fun r -> Printf.printf "\tGot result %s\n" (symb2str r)) (ContextFreeGrammar.lookahead rule false rep);
+(*        Printf.printf "\tGetting lookahead for rules";*)
+(*        List.iter (fun r -> Printf.printf " %s " r) (CFGSyntax.toStringList (Set.make [rule]));*)
+(*        Printf.printf "\n";*)
+(*        Set.iter (fun r -> Printf.printf "\tGot result %s\n" (symb2str r)) (ContextFreeGrammar.lookahead rule false rep);*)
         ContextFreeGrammar.lookahead rule false rep
       in
 
@@ -124,11 +124,11 @@ struct
       let funCalls = (List.map (fun {head;body} -> self#createFunCalls body rep) (Set.toList rules)) in
       let lookaheads = Set.map (getNextTerminals) rules in
       let mergedMap = List.map2 (fun a b -> (self#createIfConds (Set.toList a),b)) (Set.toList lookaheads) funCalls in
-      Printf.printf "Current Var: %s\n" (symb2str s);
-      List.iter (fun (a,b) -> Printf.printf "\t%s" a;
-                              Printf.printf "\n";
-                              List.iter (fun c -> Printf.printf "\t\t%s\n" c) b
-      ) mergedMap;
+(*      Printf.printf "Current Var: %s\n" (symb2str s);*)
+(*      List.iter (fun (a,b) -> Printf.printf "\t%s" a;*)
+(*                              Printf.printf "\n";*)
+(*                              List.iter (fun c -> Printf.printf "\t\t%s\n" c) b*)
+(*      ) mergedMap;*)
       let mergedMap = mergedMap @ [("",[(parseErrorFun ^ functionArgsOpen ^ functionArgsClose ^  expressionTermination)])] in
       self#createFun (symb2str s) (self#createIf mergedMap 1)
 
