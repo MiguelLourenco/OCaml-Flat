@@ -10,8 +10,8 @@ NAMES =		OCamlFlat Configuration Error Set BasicTypes Util Scanner JSon	\
 			RegExpSyntax CFGSyntax Examples									\
 			Entity Exercise Model FiniteAutomaton RegularExpression			\
 			ContextFreeGrammar PushdownAutomaton RDParser LL1Grammar		\
-			LRGrammar FiniteEnumeration PolyModel TopLevel LearnOCaml		\
-			Tests PreOpen
+			LRGrammar ContextFreeGrammarFull FiniteEnumeration PolyModel	\
+			TopLevel LearnOCaml Tests PreOpen
 
 define SRC_FILES
 	$(addprefix $(SRC_DIR)/, $(addsuffix .ml, $(foreach file, $(NAMES), $(file))))
@@ -65,19 +65,23 @@ dist: $(LIB_DIR)
 
 .PHONY: git0
 git0:
+	git fetch
 	git status
 
 .PHONY: git1
 git1:
+	git fetch
 	git diff
 
 .PHONY: git2
 git2:
+	git fetch
 	git add src/*.ml Makefile OCamlFlat.geany
 	git status
 
 .PHONY: git3
 git3:
+	git fetch
 	git commit
 	git status
 

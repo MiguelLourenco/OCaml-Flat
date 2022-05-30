@@ -1255,7 +1255,7 @@ end
 	open LR1Grammar
 	
 	class model (arg: (t,tx) Arg.alternatives) =
-		object(self) inherit ContextFreeGrammar.model arg as super
+		object(self) inherit LL1Grammar.model arg as super
 		
 	
 

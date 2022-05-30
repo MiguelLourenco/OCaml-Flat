@@ -91,6 +91,8 @@ end
 
 module ContextFreeGrammar : ContextFreeGrammarSig =
 struct
+  open CFGSyntax
+
 	type cfgTree = Leaf of char | Root of char * cfgTree list
 
 	open CFGSyntax

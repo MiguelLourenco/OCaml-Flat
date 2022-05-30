@@ -12,20 +12,18 @@
  * This software is distributed under the terms of the GPLv3 license.
  * See the included LICENSE file for details.
  *
- *  Written by ??? (???)
+ *  Written by Carlos (c)
  *)
 
 (*
  * ChangeLog:
  *
- * ???/2022 (jg) - ???.
+ * ???/2022 (c) - ???.
  * may/2022 (amd) - Initial skeleton.
  *)
 
 (*
- * Description: Finite automata functionality.
- *
- * TODO: More cleanup.
+ * Description: Pushdown automata functionality.
  *)
 
 open BasicTypes
