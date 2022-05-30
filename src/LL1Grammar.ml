@@ -22,13 +22,13 @@ sig
     nodes: cfgTree list
   }
   
-  val leftRecursionRemovalTransform : unit -> string
-  val leftFactoringTransform : unit -> string
-  val cleanProductiveTransform : unit -> string
-  val cleanAccessibleTransform : unit -> string
-  val unitRemovalTransform : unit -> string
-  val epsilonRemovalTransform : unit -> string
-  val ll1Transform : unit -> string
+  val leftRecursionRemovalTransform : string
+  val leftFactoringTransform : string
+  val cleanProductiveTransform : string
+  val cleanAccessibleTransform : string
+  val unitRemovalTransform : string
+  val epsilonRemovalTransform :  string
+  val ll1Transform : string
   
   type transformation = { tType : string; grammar : ContextFreeGrammar.model }
 	
@@ -123,13 +123,13 @@ struct
   
   let bodiesOfHead = RDParser.bodiesOfHead
   
-  let leftRecursionRemovalTransform () = "Remove left recursion"
-  let leftFactoringTransform () = "Left factoring"
-  let cleanProductiveTransform () = "Clean unproductive symbols"
-  let cleanAccessibleTransform () = "Clean inaccessible symbols"
-  let unitRemovalTransform () = "Unit productions removal"
-  let epsilonRemovalTransform () = "Epsilon productions removal"
-  let ll1Transform () = "LL1 transformation"
+  let leftRecursionRemovalTransform = "Remove left recursion"
+  let leftFactoringTransform = "Left factoring"
+  let cleanProductiveTransform = "Clean unproductive symbols"
+  let cleanAccessibleTransform = "Clean inaccessible symbols"
+  let unitRemovalTransform = "Unit productions removal"
+  let epsilonRemovalTransform = "Epsilon productions removal"
+  let ll1Transform = "LL1 transformation"
   
   type transformation = { tType : string; grammar : ContextFreeGrammar.model }
   
@@ -499,8 +499,8 @@ struct
 						} )
 
   let clean (rep:t) =
-    let prodRewrite = {tType = cleanProductiveTransform(); grammar = productiveGrammarRewrite rep} in
-    let accessRewrite = {tType = cleanAccessibleTransform(); grammar = accessibleGrammarRewrite prodRewrite.grammar#representation} in
+    let prodRewrite = {tType = cleanProductiveTransform; grammar = productiveGrammarRewrite rep} in
+    let accessRewrite = {tType = cleanAccessibleTransform; grammar = accessibleGrammarRewrite prodRewrite.grammar#representation} in
     [prodRewrite; accessRewrite]
 (*    accessibleGrammarRewrite (productiveGrammarRewrite rep)#representation*)
 
@@ -690,7 +690,7 @@ struct
     addToMap map (List.map (fun (v,_) -> v) sortedLeftCornerTest);
     let sortedVars = List.map (fun (s,_) -> s) sortedLeftCornerTest in
     let result = removeIndirectLeftRecursion map sortedVars rep in
-      {tType = leftRecursionRemovalTransform(); grammar = result}
+      {tType = leftRecursionRemovalTransform; grammar = result}
       
   (*left factoring*)
   
@@ -794,7 +794,7 @@ struct
 	    } ) in
     if isLeftFactoring newGrammar#representation 
     then leftFactoring newGrammar#representation 
-    else {tType = leftFactoringTransform(); grammar = newGrammar}
+    else {tType = leftFactoringTransform; grammar = newGrammar}
 
   let hasEmptyProductions (rep:t) =
     let nullableVars = Set.filter (fun v -> doWordGenerateEmpty [v] rep) rep.variables in
@@ -876,7 +876,7 @@ struct
     
   
   let removeEmptyProductions (rep:t) =
-    { tType = epsilonRemovalTransform(); grammar = removeEmptyProductions2 rep }
+    { tType = epsilonRemovalTransform; grammar = removeEmptyProductions2 rep }
   
 
   let isUnitProd body (rep:t) =
@@ -976,7 +976,7 @@ struct
 	      rules = Set.make newProds
 	    } )
 	  in
-	    {tType = unitRemovalTransform(); grammar = result}
+	    {tType = unitRemovalTransform; grammar = result}
 
     
     
@@ -989,13 +989,13 @@ struct
 
 
   let transformToLL1 (rep:t) =
-    let transform1 = {tType = epsilonRemovalTransform(); grammar = (removeEmptyProductions rep).grammar} in
-    let transform2 = {tType = unitRemovalTransform(); grammar = (removeUnitProductions transform1.grammar#representation).grammar} in
+    let transform1 = {tType = epsilonRemovalTransform; grammar = (removeEmptyProductions rep).grammar} in
+    let transform2 = {tType = unitRemovalTransform; grammar = (removeUnitProductions transform1.grammar#representation).grammar} in
     let cleanResult = clean transform2.grammar#representation in
-    let transform3 = {tType = cleanProductiveTransform(); grammar = (List.nth cleanResult 0).grammar} in
-    let transform4 = {tType = cleanAccessibleTransform(); grammar = (List.nth cleanResult 1).grammar} in
-    let transform5 = {tType = leftRecursionRemovalTransform(); grammar = (removeLeftRecursion transform4.grammar#representation).grammar} in
-    let transform6 = {tType = leftFactoringTransform(); grammar = (leftFactoring transform5.grammar#representation).grammar} in
+    let transform3 = {tType = cleanProductiveTransform; grammar = (List.nth cleanResult 0).grammar} in
+    let transform4 = {tType = cleanAccessibleTransform; grammar = (List.nth cleanResult 1).grammar} in
+    let transform5 = {tType = leftRecursionRemovalTransform; grammar = (removeLeftRecursion transform4.grammar#representation).grammar} in
+    let transform6 = {tType = leftFactoringTransform; grammar = (leftFactoring transform5.grammar#representation).grammar} in
     [transform1; transform2; transform3; transform4; transform5; transform6]
   
 
