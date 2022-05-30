@@ -111,30 +111,25 @@ struct
 
   
     method symbolFunction s (rep:ContextFreeGrammar.t) =
-    
-      let rec getNextTerminals ruleBody = 
-        match ruleBody with
-        | [] -> Set.empty
-        | x::xs -> if Set.belongs x rep.alphabet
-                   then Set.make [x]
-                   else if Set.belongs x rep.variables 
-                        then Set.flatMap (fun rb -> getNextTerminals rb) (bodiesOfHead x rep.rules)
-                        else Set.empty
+      let open CFGSyntax in
+      let rec getNextTerminals rule = 
+(*        Printf.printf "\tGetting lookahead for rules";*)
+(*        List.iter (fun r -> Printf.printf " %s " r) (CFGSyntax.toStringList (Set.make [rule]));*)
+(*        Printf.printf "\n";*)
+(*        Set.iter (fun r -> Printf.printf "\tGot result %s\n" (symb2str r)) (ContextFreeGrammar.lookahead rule false rep);*)
+        ContextFreeGrammar.lookahead rule false rep
       in
 
-      let rules = bodiesOfHead s rep.rules in
-      let emptyRules = Set.filter (fun r -> List.length r = 0) rules in
-      let nEmptyRules = Set.filter (fun r -> List.length r <> 0) rules in
-      let nEmptyRules2 = (List.map (fun r -> self#createFunCalls r rep) (Set.toList nEmptyRules)) in
-      let nEmptyTerminalSet = Set.map (getNextTerminals) nEmptyRules in
-(*      let equalityStrings = Set.toList (Set.map (fun t -> currentCharVar() ^ equality() ^ (String.make 1 t)) nEmptyTerminalSet) in*)
-      let mergedMap = List.map2 (fun a b -> (self#createIfConds (Set.toList a),b)) (Set.toList nEmptyTerminalSet) nEmptyRules2 in
-      Printf.printf "Current Var: %s\n" (symb2str s);
-      List.iter (fun (a,b) -> Printf.printf "\t%s" a;
-                              Printf.printf "\n";
-                              List.iter (fun c -> Printf.printf "\t\t%s\n" c) b
-      ) mergedMap;
-      let mergedMap = mergedMap @ [("",[if Set.size emptyRules = 0 then (parseErrorFun ^ functionArgsOpen ^ functionArgsClose ^  expressionTermination) else (return ^ expressionTermination)])] in
+      let rules = Set.filter (fun {head;body} -> head = s) rep.rules in
+      let funCalls = (List.map (fun {head;body} -> self#createFunCalls body rep) (Set.toList rules)) in
+      let lookaheads = Set.map (getNextTerminals) rules in
+      let mergedMap = List.map2 (fun a b -> (self#createIfConds (Set.toList a),b)) (Set.toList lookaheads) funCalls in
+(*      Printf.printf "Current Var: %s\n" (symb2str s);*)
+(*      List.iter (fun (a,b) -> Printf.printf "\t%s" a;*)
+(*                              Printf.printf "\n";*)
+(*                              List.iter (fun c -> Printf.printf "\t\t%s\n" c) b*)
+(*      ) mergedMap;*)
+      let mergedMap = mergedMap @ [("",[(parseErrorFun ^ functionArgsOpen ^ functionArgsClose ^  expressionTermination)])] in
       self#createFun (symb2str s) (self#createIf mergedMap 1)
 
 
