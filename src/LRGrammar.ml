@@ -1249,7 +1249,8 @@ let ttWordXFail () =
 end	
 (*----- End of Testing -----*)
 	
-
+module LRGrammar =
+struct
 	type t = ContextFreeGrammar.t
 	type tx = ContextFreeGrammar.tx
 	open LR1Grammar
@@ -1263,7 +1264,7 @@ end
 			method isLR1 : bool =
 				isLR1 (self#representation)
 	end
-
+end
 
 
 open LRTests ;;
