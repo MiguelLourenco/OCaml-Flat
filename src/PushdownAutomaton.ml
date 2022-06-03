@@ -12,13 +12,13 @@
  * This software is distributed under the terms of the GPLv3 license.
  * See the included LICENSE file for details.
  *
- *  Written by Carlos (c)
+ *  Written by Carlos Freitas (cf)
  *)
 
 (*
  * ChangeLog:
  *
- * ???/2022 (c) - ???.
+ * ???/2022 (cf) - ???.
  * may/2022 (amd) - Initial skeleton.
  *)
 
@@ -174,6 +174,7 @@ struct
 			("acceptStates", JSon.makeStateSet rep.acceptStates);
 			("criteria", JSon.makeBool rep.criteria)
 		]
+	
 			
 	class model (arg: (t,tx) Arg.alternatives) =
 		object(self) inherit Model.model arg modelDesignation as super
@@ -201,7 +202,7 @@ struct
 						
 			method accept(w: word): bool =
 				false
-				
+
 			method generate (length: int): words =
 				Set.empty	
 		
@@ -229,10 +230,23 @@ end
 module PushdownAutomatonTests : sig end =
 struct
 	let active = true
+
+	let pda_astar = {| {
+			kind : "pushdown automaton",
+			description : "this is an example",
+			name : "dfa_astar",
+			alphabet: ["a"],
+			states : ["START"],
+			initialState : "START",
+			transitions : [
+				["START", "a", "START"]
+			],
+			acceptStates : ["START"]
+			} |}
 	
 	let test0 () = (* not a pushdown automaton - will change*)
-		let fa = new FiniteAutomaton.model (Arg.Predef "fa_abc") in
-			let j = fa#toJSon in
+		let pda = new PushdownAutomaton.model (Arg.Text pda_astar) in
+			let j = pda#toJSon in
 				JSon.show j
 
 	let runAll =

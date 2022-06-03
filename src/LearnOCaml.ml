@@ -20,9 +20,9 @@
  *
  * jul/2021 (amd) - Added semantic validation of the student's solution.
  * jun/2021 (amd) - Added support for typed student answers in the file
- *                  "template.ml". Managed to get rid of all the technical
- *                  in the file "template.ml". Many improvements in the
- *                  implementation.
+ *                  "template.ml". Many improvements in the implementation,
+ *                  and managed to get rid of many technical
+ *                  complexities in the file "template.ml".
  * mar/2021 (amd, rm) - Initial version
  *)
 
