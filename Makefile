@@ -76,7 +76,7 @@ git1:
 .PHONY: git2
 git2:
 	git fetch
-	git add src/*.ml Makefile OCamlFlat.geany
+	git add src/*.ml Makefile
 	git status
 
 .PHONY: git3
