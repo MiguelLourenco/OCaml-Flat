@@ -45,7 +45,7 @@ test: $(LIB).ml
 
 .PHONY: types
 types: $(LIB).ml
-	echo "#use \"lib/OCamlFlat.ml\";;" | ocaml;
+	echo "#use \"lib/$(LIB_NAME).ml\";;" | ocaml;
 
 clean:
 	@chmod 600 $(SRC_FILES) $(SERVICE)
@@ -53,15 +53,21 @@ clean:
 	
 .PHONY: edit
 edit:
-	@geany -s OCamlFlat.geany src/*.ml $(shell find ../OFLAT/src -name *.ml ! -name 'OCamlFlat.ml')
+	@cd $(SRC_DIR) ; geany ../$(LIB_NAME).geany &
+
+.PHONY: editreset
+editreset:
+	cp geany.template $(LIB_NAME).geany
+	sed -i -e "s/PROJECT_NAME/$(LIB_NAME)/" $(LIB_NAME).geany
+	@echo PLEASE, activate the plugins "File Browser" and "Split Window"; sleep 3
+	$(MAKE) edit
 
 .PHONY: dist
-dist: $(LIB_DIR)
-	rm -rf OCamlFlat
-	mkdir OCamlFlat
-	cp -a LICENCE Makefile README.md OCamlFlat.geany src OCamlFlat
-	tar cpvz OCamlFlat > OCamlFlat.tgz
-	rm -rf OCamlFlat
+dist: clean
+	rm -rf $(LIB_NAME); mkdir $(LIB_NAME)
+	cp -a LICENCE Makefile README.md $(LIB_NAME).geany src $(LIB_NAME)
+	tar cpvz $(LIB_NAME) > $(LIB_NAME).tgz
+	rm -rf $(LIB_NAME)
 
 .PHONY: git0
 git0:
@@ -76,7 +82,7 @@ git1:
 .PHONY: git2
 git2:
 	git fetch
-	git add src/*.ml Makefile
+	git add src/*.ml Makefile geany.template
 	git status
 
 .PHONY: git3
