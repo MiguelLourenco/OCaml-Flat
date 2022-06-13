@@ -70,6 +70,8 @@ sig
 	type property = string
 	type properties = property set
 
+	(* OTHER *)	
+	type direction = L | R
 end
 
 module BasicTypes : BasicTypesSig =
@@ -147,4 +149,7 @@ struct
 	
 	type property = string
 	type properties = property set
+
+	(* OTHER *)	
+	type direction = L | R
 end

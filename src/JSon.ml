@@ -74,6 +74,9 @@ sig
 (*	val fieldQuintupletsList : t -> string -> (state * symbol * symbol * state * symbol set) list *)
 	val fieldQuintupletsSet : t -> string -> (state * symbol * symbol * state * word) set
 
+
+	val fieldTMTransitionSet : t -> string -> (state * symbol * state * symbol * direction) set
+	
 	val append: t -> t -> t
 	
 	val makeSymbol : symbol -> t
@@ -85,6 +88,7 @@ sig
 	val makeBool : bool -> t
     val makeTriplesSet : (state * symbol * state) set -> t
     val makeQuintupletsSet : (state * symbol * symbol * state * word) set -> t
+	val makeTMTransitionsSet : (state * symbol * state * symbol * direction) set -> t
 	val makeAssoc : (string * t) list -> t
 end
 
@@ -361,6 +365,7 @@ struct
 	
 	let dummySymb = symb "#"
 	let dummyState = state "#"
+	let dummyDirection = L
 
 	let fieldSymbol (j: t) (field: string): symbol =
 		match j |> getField field with
@@ -418,12 +423,17 @@ struct
 	let fieldStateSet (j: t) (field: string) =
 		Set.validate (fieldStateList j field) field
 
-
 	let fieldBool (j: t) (field: string) =
 		match fieldString j field with
 		| "false" -> false
 		| "true" -> true
 		| _ -> error field "Expected bool" false
+
+	let fieldDirection (j: t) (field: string) =
+		match fieldString j field with
+		| "L" -> L
+		| "R" -> R
+		| _ -> error field "Expected L|R" dummyDirection
 
 
 	let asStateSymbolState (j: t) (field: string) =
@@ -456,6 +466,25 @@ struct
 				asWord e field
 			)
 		| _ -> error field "Malformed quintuplet" (dummyState,dummySymb,dummySymb,dummyState,[])
+
+
+	let asDirection (j: t) (field: string): direction =
+		match j with
+		| JString "L" -> L
+		| JString "R" -> R
+		| _ -> error field "Expected L|R" dummyDirection
+
+
+	let asStateSymbolStateSymbolDirection (j: t) (field: string) =
+		match j with
+		| JList [a; b; c; d; e] ->
+			(	asState a field,
+				asSymbol b field,
+				asState c field,
+				asSymbol d field,
+				asDirection e field
+			)
+		| _ -> error field "Malformed TM transition" (dummyState,dummySymb,dummyState,dummySymb,dummyDirection)
 	
 	let fieldQuintupletsList (j: t) (field: string) =
 		match j |> getField field with
@@ -465,6 +494,16 @@ struct
 
 	let fieldQuintupletsSet (j: t) (field: string) =
 		Set.validate (fieldQuintupletsList j field) field
+
+
+	let fieldTMTransitionList (j: t) (field: string) =
+		match j |> getField field with
+		| JNull -> error field "Missing field" []
+		| JList l -> List.map (fun j -> asStateSymbolStateSymbolDirection j field) l
+		| _ -> []
+
+	let fieldTMTransitionSet (j: t) (field: string) =
+		Set.validate (fieldTMTransitionList j field) field
 
 
 	let append j1 j2 =
@@ -500,8 +539,22 @@ struct
 
 	let makeQuintupletsSet s =
 		JList (List.map (fun (a,b,c,d,e) ->
-				JList [JString (state2str a); JString (symb2str b); JString (symb2str c);
-						JString (state2str d); JString (word2str e)]) (Set.toList s))
+							JList [	JString (state2str a);
+									JString (symb2str b);
+									JString (symb2str c);
+									JString (state2str d);
+									JString (word2str e)])
+							(Set.toList s))
+
+	let makeTMTransitionsSet s =
+		JList (List.map (fun (a,b,c,d,e) ->
+							JList [	JString (state2str a);
+									JString (symb2str b);
+									JString (state2str a);
+									JString (symb2str b);
+									JString (if e = L then "L" else "R")])
+							(Set.toList s))
+
 
 	let makeAssoc l =
 		JAssoc l

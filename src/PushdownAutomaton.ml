@@ -229,7 +229,7 @@ end
 	
 module PushdownAutomatonTests : sig end =
 struct
-	let active = true
+	let active = false
 
 	let pda_astar = {| {
 			kind : "pushdown automaton",

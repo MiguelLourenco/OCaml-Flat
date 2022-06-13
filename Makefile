@@ -10,8 +10,8 @@ NAMES =		OCamlFlat Configuration Error Set BasicTypes Util Scanner JSon	\
 			RegExpSyntax CFGSyntax Examples									\
 			Entity Exercise Model FiniteAutomaton RegularExpression			\
 			ContextFreeGrammar PushdownAutomaton RDParser LL1Grammar		\
-			LRGrammar ContextFreeGrammarFull FiniteEnumeration PolyModel	\
-			TopLevel LearnOCaml Tests PreOpen
+			LRGrammar ContextFreeGrammarFull TuringMachine FiniteEnumeration\
+			PolyModel TopLevel LearnOCaml Tests PreOpen
 
 define SRC_FILES
 	$(addprefix $(SRC_DIR)/, $(addsuffix .ml, $(foreach file, $(NAMES), $(file))))
@@ -19,8 +19,8 @@ endef
 
 $(LIB).ml: $(SRC_FILES)
 	@echo "TYPE CHECKING: *.ml"
-	@$(shell ocaml $(SERVICE) make $(NAMES))
-	@cd src ; rm -f *.cmi *.cmo
+	@$(shell ocaml $(SERVICE) make $(NAMES)) || rm -f $(SRC_DIR)/*.cm[io]
+	@rm -f $(SRC_DIR)/*.cm[io]
 	@echo "GENERATING:" $(LIB).ml
 	@mkdir -p lib
 	@cat $(SRC_FILES) > $(LIB).ml
@@ -70,23 +70,23 @@ dist: clean
 	rm -rf $(LIB_NAME)
 
 .PHONY: git0
-git0:
+git0: clean
 	git fetch
 	git status
 
 .PHONY: git1
-git1:
+git1: clean
 	git fetch
 	git diff
 
 .PHONY: git2
-git2:
+git2: clean
 	git fetch
 	git add src/*.ml Makefile geany.template
 	git status
 
 .PHONY: git3
-git3:
+git3: clean
 	git fetch
 	git commit
 	git status

@@ -31,7 +31,7 @@
  *
  * TODO: More cleanup.
  *)
- 
+
 open BasicTypes
 
 module type FiniteAutomatonSig = sig
