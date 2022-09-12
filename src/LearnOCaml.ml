@@ -1,7 +1,7 @@
 (*
  * LearnOCaml.ml
  *
- * This file is part of the OCamlFlat library
+ * This file is part of the OCamlFLAT library
  *
  * LEAFS project (partially supported by the OCaml Software Foundation) [2020/21]
  * FACTOR project (partially supported by the Tezos Foundation) [2019/20]
@@ -37,7 +37,7 @@
  * 
  * The current solution comprehends:
  *
- * - A technique that allows the OCamlFlat library to be available inside the
+ * - A technique that allows the OCamlFLAT library to be available inside the
  *   exercise environment of Learn-OCaml (via the file "prepare.ml").
  *   
  * - The idea of reducing FLAT model analysis to OCaml function analysis. This
@@ -58,8 +58,8 @@ open BasicTypes
 module type LearnOCamlSig =
 sig
 	val setOCamlFlatDir : string -> unit
-	val setLearnOCamlDir : string -> unit
-	val setLearnOCamlTarget : string -> unit
+	val setExercicesDir : string -> unit
+	val setExerciceName : string -> unit
 	val processAnswer : Model.model
 					-> Exercise.exercise -> (string * int) list
 	val decl2json : string -> JSon.t
@@ -70,26 +70,26 @@ module LearnOCaml : LearnOCamlSig =
 struct
 	(* ----- Dir/File management ----- *)
 	let oCamlFlatDir = ref ""
-	let learnOCamlDir = ref ""
-	let learnOCamlTarget = ref ""		
+	let exercicesDir = ref ""
+	let exerciceName = ref ""		
 
 	let setOCamlFlatDir dirname =
 		oCamlFlatDir := Util.handleHomeDir dirname
 
-	let setLearnOCamlDir dirname =
-		learnOCamlDir := Util.handleHomeDir dirname
+	let setExercicesDir dirname =
+		exercicesDir := Util.handleHomeDir dirname
 
-	let setLearnOCamlTarget filename =
-		learnOCamlTarget := filename
+	let setExerciceName filename =
+		exerciceName := filename
 
 	let initialize () =
 		if !oCamlFlatDir = "" then
 			begin
 				setOCamlFlatDir
 					"~/work/OCamlFlat";
-				setLearnOCamlDir
+				setExercicesDir
 					"~/work/learn-test/my-learn-ocaml-repository/exercises";
-				setLearnOCamlTarget
+				setExerciceName
 					"default"
 			end
 
@@ -97,7 +97,7 @@ struct
 		!oCamlFlatDir ^ "/lib/OCamlFlat.ml"
 
 	let targetDir () =
-		!learnOCamlDir ^ "/" ^ !learnOCamlTarget
+		!exercicesDir ^ "/" ^ !exerciceName
 	
 	let targetFile fileName =
 		targetDir () ^ "/" ^ fileName
@@ -115,6 +115,9 @@ struct
 			output_string co text;
 			close_out co
 		end
+
+	let getExerciceDirContents () =
+		Array.to_list (Sys.readdir !exercicesDir)
 	
 	(* ----- Utility functions ----- *)
 	let processUnitTest m expected w =
@@ -220,10 +223,10 @@ struct
 	
 	let contents (exercise: JSon.t) =
 		Printf.sprintf
-	{ooo_descr_html_ooo|
+{ooo_descr_html_ooo|
 		<h3> %s </h3>
 		<p> %s </p>
-	|ooo_descr_html_ooo}
+|ooo_descr_html_ooo}
 		(JSon.fieldString exercise "description")
 		(JSon.fieldString exercise "problem")
 	
@@ -238,10 +241,11 @@ struct
 	let contents (exercise: JSon.t) =
 		Printf.sprintf
 	{ooo_meta_json_ooo|
-		{ "learnocaml_version" : "1",
-		  "kind"               : "exercise",
-		  "stars"              : 0,
-		  "title"              : "%s"
+		{
+		  "learnocaml_version" : "1",
+		  "kind" : "exercise",
+		  "stars" : 0,
+		  "title" : "%s"
 		}
 	|ooo_meta_json_ooo}
 		(JSon.fieldString exercise "description")
@@ -253,16 +257,6 @@ struct
 	(* ----- FILE prelude.ml ----- *)
 	let fileName =
 		"prelude.ml"
-
-	let contents_old =
-	{ooo_prelude_ml_ooo|
-		(* Some code is loaded in the toplevel before your code. *)
-		let greetings = "Hello world!"
-	|ooo_prelude_ml_ooo}
-
-	let generateFile_Prelude_old () =
-		let text = contents_old in
-			createTargetFile fileName text
 
 	let generateFile_Prelude (solution: Model.model) =
 		let text = solution#xTypeDeclString in
@@ -288,7 +282,9 @@ struct
 		(JSon.toStringN 2 solution#toJSon)
 
 	let contents (solution: Model.model) =
-		solution#toDisplayString "solution"
+		let signature = "\n\t\t(* OCamlFlat exercise *)" in
+		let body = solution#toDisplayString "solution" in
+			signature ^ body
 	
 	let generateFile_Solution (solution: Model.model) useJSon =
 		let text =
@@ -324,16 +320,15 @@ struct
 		in
 			createTargetFile fileName text
 
-	
 	(* ----- FILE test.ml ----- *)
 	let fileName =
 		"test.ml"
 	
 	let exercisePart (exercise: JSon.t) =
 		Printf.sprintf
-	{ooo_exercice_ooo|
+	{ooo_exercise_ooo|
 		let exercise = {| %s |}
-	|ooo_exercice_ooo}
+	|ooo_exercise_ooo}
 		(JSon.toStringN 2 exercise)
 
 	let handleAnswerPartJSon =
@@ -405,6 +400,30 @@ struct
 		in
 			createTargetFile fileName text	
 
+	(* ----- FILE index.json ----- *)
+	let fileName =
+		"../index.json"
+		
+	let contents (l: string list) =
+		Printf.sprintf
+	{ooo_index_json_ooo|
+		{
+		  "learnocaml_version" : "1",
+		  "groups" : { "OCamlFLAT": {
+		    "title": "OCamlFLAT exercise pack for Learn-OCaml",
+		    "exercises": %s
+		  } }
+		}
+	|ooo_index_json_ooo}
+		(strings2display l)
+	
+	let generateFile_Index () =
+		let l = getExerciceDirContents () in
+		let l = List.filter (fun x -> x <> "index.json") l in
+		let text = contents l in
+		let text = String.map (fun x -> if x = ';' then ',' else x) text in
+			createTargetFile fileName text
+
 	(* ----- generateExerciseDir ----- *)
 	
 	let generateExerciseDir exercise solution useJSon =
@@ -417,35 +436,40 @@ struct
 			generateFile_Prepare ();
 			generateFile_Solution solution useJSon;
 			generateFile_Template solution useJSon;
-			generateFile_Test exercise solution useJSon
+			generateFile_Test exercise solution useJSon;
+			generateFile_Index ()
 end
 
 
 module LearnOCamlTests =
 struct
-	let active = false
+	let active = true
 
-	let prepare () =
+	let prepare target =
+		print_string ("Generate: " ^ target ^ "\n");
 		LearnOCaml.setOCamlFlatDir "~/work/OCamlFlat";
-		LearnOCaml.setLearnOCamlDir "~/work/OCamlFlat/lo";
-		LearnOCaml.setLearnOCamlTarget "default"
+		LearnOCaml.setExercicesDir "~/work/OCamlFlat/exercises";
+		LearnOCaml.setExerciceName target
 
 	let prepare0 () =
 		LearnOCaml.setOCamlFlatDir "~/work/OCamlFlat";
-		LearnOCaml.setLearnOCamlDir "~/work/learn/my-learn-ocaml-repository/exercises";
-		LearnOCaml.setLearnOCamlTarget "default"
+		LearnOCaml.setExercicesDir "~/work/learn/my-learn-ocaml-repository/exercises";
+		LearnOCaml.setExerciceName "default"
+
+	let make exercise model =
+		prepare exercise;
+		let exercise = Examples.jsonExample exercise in
+		let solution = Examples.jsonExample model in
+			LearnOCaml.generateExerciseDir exercise solution false
 	
 	let test0 () =
-		prepare();
-		let exercise = Examples.jsonExample "exer_astar" in
-		let solution = Examples.jsonExample "dfa_astar" in
-			LearnOCaml.generateExerciseDir exercise solution false
+		make "exer_astar_fa" "dfa_astar"
 			
 	let test1 () =
-		prepare();
-		let exercise = Examples.jsonExample "exer_astar" in
-		let solution = Examples.jsonExample "re_astar" in
-			LearnOCaml.generateExerciseDir exercise solution false
+		make "exer_astar_re" "re_astar"
+			
+	let test2 () =
+		make "exer_balanced_cfg" "cfg_balanced"
 	
 	let fe_colors = {| {
 		kind : "finite enumeration",
@@ -453,15 +477,9 @@ struct
 		name : "colors",
 		words : ["Red", "Yellow", "Blue"]
 	} |}
-
-	let test2 () =
-		prepare();
-		let exercise = Examples.jsonExample "exer_balanced" in
-		let solution = Examples.jsonExample "cfg_balanced" in
-			LearnOCaml.generateExerciseDir exercise solution false
 			
 	let test3 () =
-		prepare();
+		prepare "exer_astar";
 		let exercise = Examples.jsonExample "exer_astar" in
 		let solution = JSon.parse fe_colors in
 			LearnOCaml.generateExerciseDir exercise solution false
@@ -503,7 +521,9 @@ struct
  
 	let runAll =
 		if Util.testing active "LearnOCaml" then begin
-			test4 ()
+			test0 ();
+			test1 ();
+			test2 ()
 		end
 end
 

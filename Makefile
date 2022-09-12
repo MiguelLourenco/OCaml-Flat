@@ -6,12 +6,31 @@ LIB_NAME = OCamlFlat
 LIB = $(LIB_DIR)/$(LIB_NAME)
 SRC_DIR = src
 SERVICE = $(SRC_DIR)/Service.ml
-NAMES =		OCamlFlat Configuration Error Set BasicTypes Util Scanner JSon	\
-			RegExpSyntax CFGSyntax Examples									\
-			Entity Exercise Model FiniteAutomaton RegularExpression			\
-			ContextFreeGrammar PushdownAutomaton RDParser LL1Grammar		\
-			LRGrammar ContextFreeGrammarFull TuringMachine FiniteEnumeration\
-			PolyModel TopLevel LearnOCaml Tests PreOpen
+NAMES =		OCamlFlat Configuration Error 			\
+													\
+			Set BasicTypes Util						\
+													\
+			Scanner JSon							\
+													\
+			Examples Entity Exercise Model 			\
+													\
+			FinAutSyntax FiniteAutomaton			\
+													\
+			RegExpSyntax RegularExpression			\
+													\
+			FinEnuSyntax FiniteEnumeration			\
+													\
+			CFGSyntax CFGChomsky ContextFreeGrammar	\
+			RDParser LL1Grammar						\
+			LRGrammar								\
+			ContextFreeGrammarFull					\
+													\
+			PushdownAutomaton  						\
+													\
+			TuringMachine							\
+			PolyModel								\
+													\
+			TopLevel LearnOCaml Tests PreOpen
 
 define SRC_FILES
 	$(addprefix $(SRC_DIR)/, $(addsuffix .ml, $(foreach file, $(NAMES), $(file))))
@@ -19,16 +38,33 @@ endef
 
 $(LIB).ml: $(SRC_FILES)
 	@echo "TYPE CHECKING: *.ml"
-	@$(shell ocaml $(SERVICE) make $(NAMES)) || rm -f $(SRC_DIR)/*.cm[io]
+	@$(shell ocaml $(SERVICE) make $(NAMES)) || (rm -f *.cm[io] ; exit 1)
 	@rm -f $(SRC_DIR)/*.cm[io]
 	@echo "GENERATING:" $(LIB).ml
 	@mkdir -p lib
-	@cat $(SRC_FILES) > $(LIB).ml
+	@cppo -D ALL $(SRC_FILES) > $(LIB).ml
+	@ls -l $(LIB).ml
+
+.PHONY: small
+small: $(SRC_FILES)
+	@echo "TYPE CHECKING: *.ml"
+	@$(shell ocaml $(SERVICE) make_small $(NAMES)) || (rm -f *.cm[io] ; exit 1)
+	@rm -f $(SRC_DIR)/*.cm[io]
+	@echo "GENERATING:" $(LIB).ml
+	@mkdir -p lib
+	@cppo $(SRC_FILES) > $(LIB).ml
+	@ls -l $(LIB).ml
 
 $(LIB).cma: $(LIB).ml
 	@echo "COMPILING:" $(LIB).cma
 	@$(COMP) $(FLAGS) -o $(LIB).cma -a $(LIB).ml
 	@rm -f $(LIB).cmi $(LIB).cmo
+
+.PHONY: tags
+tags:
+	find -L src -not -path '*/\.*' \( -name "*.ml" \)			\
+	| ctags --totals --fields=fKsSt --extra=-fq --c-kinds=+p	\
+			--sort=foldcase --excmd=number -L - -f $(LIB_NAME).tags
 
 .PHONY: all
 all: $(LIB).cma
@@ -47,10 +83,11 @@ test: $(LIB).ml
 types: $(LIB).ml
 	echo "#use \"lib/$(LIB_NAME).ml\";;" | ocaml;
 
+.PHONY: clean
 clean:
 	@chmod 600 $(SRC_FILES) $(SERVICE)
 	rm -rf $(LIB_DIR) $(SRC_DIR)/*.cmi $(SRC_DIR)/*.cmo
-	
+
 .PHONY: edit
 edit:
 	@cd $(SRC_DIR) ; geany ../$(LIB_NAME).geany &

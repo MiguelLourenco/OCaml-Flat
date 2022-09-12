@@ -1,7 +1,9 @@
+#ifdef ALL
+ 
 (*
  * ContextFreeGrammarFull.ml
  *
- * This file is part of the OCamlFlat library
+ * This file is part of the OCamlFLAT library
  *
  * LEAFS project (partially supported by the OCaml Software Foundation) [2020/21]
  * FACTOR project (partially supported by the Tezos Foundation) [2019/20]
@@ -28,12 +30,10 @@
  *)
 
 open BasicTypes
+open CFGTypes  
 
 module type ContextFreeGrammarFullSig =
 sig
-	type t = ContextFreeGrammar.t
-	type tx = ContextFreeGrammar.tx
-	
 	type syntaxTable = LL1Grammar.syntaxTable
 	type acceptTable = LL1Grammar.acceptTable
 	type recognized = LL1Grammar.recognized
@@ -56,7 +56,7 @@ sig
 				method isRegular: bool
 				method first: word -> symbol Set.t
 				method follow: symbol -> symbol Set.t
-				method lookahead: CFGSyntax.rule -> symbol Set.t
+				method lookahead: rule -> symbol Set.t
 				method accept: word -> bool
 				method acceptWithTracing: word -> unit
 				method generate: int -> words
@@ -111,9 +111,6 @@ end
 
 module ContextFreeGrammarFull : ContextFreeGrammarFullSig =
 struct
-	type t = ContextFreeGrammar.t
-	type tx = ContextFreeGrammar.tx
-	
 	type syntaxTable = LL1Grammar.syntaxTable
 	type acceptTable = LL1Grammar.acceptTable
 	type recognized = LL1Grammar.recognized
@@ -127,3 +124,5 @@ struct
 
 
 end
+
+#endif

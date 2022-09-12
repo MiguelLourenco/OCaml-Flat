@@ -1,7 +1,7 @@
 (*
  * Exercise.ml
  *
- * This file is part of the OCamlFlat library
+ * This file is part of the OCamlFLAT library
  *
  * LEAFS project (partially supported by the OCaml Software Foundation) [2020/21]
  * FACTOR project (partially supported by the Tezos Foundation) [2019/20]
@@ -31,15 +31,22 @@
 
 open BasicTypes
 
-module type ExerciseSig =
-sig
+module ExerTypes =
+struct
+	type tx =
+		unit
 	type t = {
 		problem : string;
 		inside : words;
 		outside : words;
 		properties : properties
 	}
-	
+end
+
+module type ExerciseSig =
+sig
+	open ExerTypes
+
 	class exercise :
 		(t,t) Arg.alternatives ->
 			object
@@ -58,13 +65,7 @@ end
 
 module Exercise : ExerciseSig =
 struct
-
-	type t = {
-		problem : string;
-		inside : words;
-		outside : words;
-		properties : string set
-	}
+	open ExerTypes
 	
 	let fromJSon j =
 		if JSon.isNull j || not (JSon.hasField j "kind") then {
@@ -119,7 +120,7 @@ struct
 	let active = false
 
 	let test0 () =
-		let e = new Exercise.exercise (Arg.Predef "exer_astar") in
+		let e = new Exercise.exercise (Arg.Predef "exer_balanced") in
 		let je = e#toJSon in
 			JSon.show je
 

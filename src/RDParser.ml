@@ -1,12 +1,14 @@
+#ifdef ALL
 
 open BasicTypes
+open CFGTypes
 
 module RDParser =
 struct
 
   (* given a head, returns the set of all its bodies according to the cfg's rules *)
 	let bodiesOfHead h rl =
-	  let open CFGSyntax in
+	  let open CFGTypes in
 		let rls = Set.filter (fun r -> r.head = h) rl in
 			Set.map (fun r -> r.body) rls
 
@@ -76,7 +78,7 @@ struct
 
 
     (*TODO Move to lower level*)
-    method createFunCalls funs (rep:ContextFreeGrammar.t) =
+    method createFunCalls funs (rep: t) =
       match funs with
       | [] -> []
       | x::xs when Set.belongs x rep.alphabet -> [matchCharFun ^ functionArgsOpen ^ "\'" ^ symb2str x ^ "\'" ^ functionArgsClose ^ expressionTermination] @ self#createFunCalls xs rep
@@ -110,8 +112,8 @@ struct
       createIf2 true ifList tabLevel
 
   
-    method symbolFunction s (rep:ContextFreeGrammar.t) =
-      let open CFGSyntax in
+    method symbolFunction s (rep: t) =
+      let open CFGTypes in
       let rec getNextTerminals rule = 
 (*        Printf.printf "\tGetting lookahead for rules";*)
 (*        List.iter (fun r -> Printf.printf " %s " r) (CFGSyntax.toStringList (Set.make [rule]));*)
@@ -133,7 +135,7 @@ struct
       self#createFun (symb2str s) (self#createIf mergedMap 1)
 
 
-    method virtual build : ContextFreeGrammar.t -> string
+    method virtual build : t -> string
 
   end
 end
@@ -156,7 +158,7 @@ struct
   class virtual parser =
     object(self) inherit RDParser.parser as super
     
-      method build (rep:ContextFreeGrammar.t) =
+      method build (rep: t) =
         self#setupIncludes ^
         self#setupVariables ^
         self#getCharFunction ^
@@ -184,7 +186,7 @@ struct
           in
       printDecl vars ^ "\n"
     
-      method build (rep:ContextFreeGrammar.t) =
+      method build (rep: t) =
         Util.stripHead (self#setupIncludes ^
         self#setupVariables ^
         self#functionDeclarations rep.variables ^
@@ -216,7 +218,7 @@ struct
         in
         printFunctionsX vars rep first
     
-      method build (rep:ContextFreeGrammar.t) =
+      method build (rep: t) =
         Util.stripHead (self#setupIncludes ^
         self#setupVariables ^
         self#getCharFunction ^
@@ -250,9 +252,9 @@ struct
 
     method setupIncludes =
   	  Printf.sprintf {|
-		#include <stdio.h>
-		#include <stdlib.h>
-		#include <string.h>
+		\#include <stdio.h>
+		\#include <stdlib.h>
+		\#include <string.h>
       |}
     
     
@@ -365,7 +367,7 @@ struct
                 currentCharVar (arrayVar) (currentIndexVar)
         
         
-    method createFunCalls funs (rep:ContextFreeGrammar.t) =
+    method createFunCalls funs (rep: t) =
       match funs with
       | [] -> []
       | x::xs when Set.belongs x rep.alphabet -> [matchCharFun ^ functionArgsOpen ^ "\'" ^ (symb2str x) ^ "\'" ^ functionArgsClose ^ expressionTermination] @ self#createFunCalls xs rep
@@ -521,10 +523,12 @@ struct
 		}
       |} name contents
 
-	method build (rep:ContextFreeGrammar.t) =
+	method build (rep: t) =
 		"public class Main {" ^
 			super#build rep ^
 		"}"
 
   end
 end
+
+#endif

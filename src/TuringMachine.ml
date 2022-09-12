@@ -1,7 +1,9 @@
+#ifdef ALL
+
 (*
  * TuringMachine.ml
  *
- * This file is part of the OCamlFlat library
+ * This file is part of the OCamlFLAT library
  *
  * LEAFS project (partially supported by the OCaml Software Foundation) [2020/21]
  * FACTOR project (partially supported by the Tezos Foundation) [2019/20]
@@ -28,7 +30,8 @@
 
 open BasicTypes
 
-module type TuringMachineSig = sig
+module TurMachTypes =
+struct
 	type transition = state * symbol * state * symbol * direction
 	type transitions = transition set
 	type tx = {
@@ -45,7 +48,11 @@ module type TuringMachineSig = sig
 		transitions : transitions;
 		acceptStates : states
 	}
-	
+end
+
+open TurMachTypes
+
+module type TuringMachineSig = sig
 	val modelDesignation : string
 	class model :
 		(t,tx) Arg.alternatives ->
@@ -79,28 +86,6 @@ end
 
 module TuringMachine : TuringMachineSig =
 struct
-	type transition =
-		  state			(* state *)	
-		* symbol		(* current symbol read *)
-		* state			(* new state *)
-		* symbol		(* written symbol *)
-		* direction		(* movement *)
-	type transitions = transition set
-	type tx = {
-		alphabet : symbol list;
-		states : state list;
-		initialState : state;
-		transitions : transition list;
-		acceptStates : state list
-	}
-	type t = {
-		alphabet : symbols;
-		states : states;
-		initialState : state;
-		transitions : transitions;
-		acceptStates : states
-	}
-
 	let modelDesignation = "turing machine"
 
 	let internalize (tm: tx): t = {
@@ -146,7 +131,6 @@ struct
 			
 	class model (arg: (t,tx) Arg.alternatives) =
 		object(self) inherit Model.model arg modelDesignation as super
-
 			val representation: t =
 				match arg with
 				| Arg.Representation r -> r
@@ -164,7 +148,10 @@ struct
 			method toJSon: JSon.t =
 				JSon.append (super#toJSon) (toJSon representation)
 
-			method validate: unit = ()
+			method validate: unit =
+				Error.error self#id.Entity.name
+					"The alphabet contains epsilon '~', and it should not" ()
+
 
 			method tracing : unit = ()
 						
@@ -197,7 +184,7 @@ end
 	
 module TuringMachineTests : sig end =
 struct
-	let active = true
+	let active = false
 
 	let tm_astar = {| {
 			kind : "turing machine",
@@ -223,3 +210,5 @@ struct
 			test0 ()
 		end
 end
+
+#endif

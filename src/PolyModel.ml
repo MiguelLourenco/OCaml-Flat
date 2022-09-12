@@ -1,7 +1,7 @@
 (*
  * PolyModel.ml
  *
- * This file is part of the OCamlFlat library
+ * This file is part of the OCamlFLAT library
  *
  * LEAFS project (partially supported by the OCaml Software Foundation) [2020/21]
  * FACTOR project (partially supported by the Tezos Foundation) [2019/20]
@@ -50,6 +50,7 @@ end
 
 module PolyModel : PolyModelSig =
 struct
+
 	let json2model (j: JSon.t): Model.model =	(* will build any model *)
 		let kind = JSon.fieldString j "kind" in
 			if FiniteAutomaton.modelDesignation = kind then
@@ -102,7 +103,7 @@ struct
 					str2state name in
 
 
-		let rec compile (rep: RegExpSyntax.t) : FiniteAutomaton.t =
+		let rec compile (rep: RegExpTypes.t) : FinAutTypes.t =
 			match rep with
 				| Plus(l, r) ->
 						let fa1 = compile l in
@@ -167,8 +168,8 @@ struct
 			new FiniteAutomaton.model (Arg.Representation (compile re#representation))
 
 	let fa2reMake fa =
-		let open FiniteAutomaton in
-		let open RegExpSyntax in
+		let open FinAutTypes in
+		let open RegExpTypes in
 		(* Since the algorithm only works for deterministic automaton, we first convert it
 			to its deterministic equivalent *)
 		let fa = fa#toDeterministic in
@@ -180,6 +181,7 @@ struct
 
 		(* transforms the set of expressions into the regex: plus of all expressions of the set *)
 		let rec plusSet reSet =
+			let open RegExpTypes in
 			let rec pls l =
 				match l with
 					[] -> Zero
@@ -286,7 +288,7 @@ struct
 
 		(* create gcf rules for plus expression *)
 		let convertPlsRules rl i1 i2 newInit =
-
+			let open CFGTypes in
 			let newRule1 = {head = newInit; body = [i1]} in
 			let newRule2 = {head = newInit; body = [i2]} in
 
@@ -296,6 +298,7 @@ struct
 
 		(* create gcf rules for seq expression *)
 		let convertSeqRules lcfg rcfg =
+			let open CFGTypes in
 			let rl1 = lcfg.rules in
 			let rl2 = rcfg.rules in
 			let alp1 = lcfg.alphabet in
@@ -316,6 +319,7 @@ struct
 
 		(* create gcf rules for star expression *)
 		let convertStrRules cfg =
+			let open CFGTypes in
 
 			let newBody b =
 				match b with
@@ -332,7 +336,8 @@ struct
 
 
 		let rec compile rep =
-			let open RegExpSyntax in
+			let open RegExpTypes in
+			let open CFGTypes in
 			match rep with
 
 				| Plus(l, r) ->
@@ -425,8 +430,7 @@ struct
 	* @returns FiniteAutomaton.model -> the equivalent finite automaton
 	*)
 	let cfg2fa cfg =
-		let open ContextFreeGrammar in
-		let open CFGSyntax in
+		let open CFGTypes in
 
 		let rep = cfg#representation in
 
@@ -460,13 +464,14 @@ struct
 
 		let transitions = Set.flatMap (fun r -> ruleToTrans r.head r.body) rep.rules in
 
-		let open FiniteAutomaton in
-		let fa = {alphabet = alphabet;
-		states = states;
-		initialState = initialState;
-					transitions = transitions;
-					acceptStates = acceptStates} in
-
+		let open FinAutTypes in
+		let fa = {
+			alphabet = alphabet;
+			states = states;
+			initialState = initialState;
+			transitions = transitions;
+			acceptStates = acceptStates
+		} in
 			new FiniteAutomaton.model (Arg.Representation (fa))
 
 

@@ -1,15 +1,10 @@
+#ifdef ALL
 
 open BasicTypes
+open CFGTypes  
 
 module type LL1GrammarSig =
-sig
-
-  open ContextFreeGrammar  
-  
-  type cfgTree = Leaf of symbol | Root of symbol * cfgTree list
-  type t = ContextFreeGrammar.t
-  type tx = ContextFreeGrammar.tx
-	
+sig  
   type syntaxTable = { term : symbol option; var : symbol option; rBody : word option }
   type acceptTable = { input : string; stack: string; production: string }
   type recognized = { recog : string; left : string }
@@ -55,7 +50,7 @@ sig
 				
 				method first: word -> symbol Set.t
 			  method follow: symbol -> symbol Set.t
-			  method lookahead: CFGSyntax.rule -> symbol Set.t
+			  method lookahead: rule -> symbol Set.t
 			  method isLL1: bool
 			  method isLeftRecursive: bool
 			  method createParsingTable: ((variable * symbol) * word) Set.t
@@ -97,18 +92,11 @@ end
 
 module LL1Grammar : LL1GrammarSig =
 struct
-  
   open ContextFreeGrammar  
-  open CFGSyntax
   open RDParserC
   open RDParserOCaml
   open RDParserJava
-  
-	type cfgTree = Leaf of symbol | Root of symbol * cfgTree list
-
-  type t = ContextFreeGrammar.t
-  type tx = ContextFreeGrammar.tx
-  
+   
   type syntaxTable = { term : symbol option; var : symbol option; rBody : word option }
   type acceptTable = { input : string; stack: string; production: string }
   type recognized = { recog : string; left : string }
@@ -520,7 +508,7 @@ struct
       Set.nth acceptableVars 0
 
 
-  let rec leftCorner2 symbol seen (rep:ContextFreeGrammar.t) =
+  let rec leftCorner2 symbol seen (rep: t) =
     match symbol with
     | [] -> Set.empty
     | x::xs ->
@@ -1040,9 +1028,6 @@ end
 
 module LL1GrammarTests: sig end =
 struct
-
-  open CFGSyntax
-
 	let active = false
 
   let example1 = {| {
@@ -1387,13 +1372,13 @@ struct
 
   let firstPairConversion_old l = Set.make (List.map (fun (a,b) -> (a, Set.make b)) l)
   let followPairConversion_old l = Set.make (List.map (fun (a,b) -> (a, Set.make b)) l)
-  let lookaheadPairConversion_old l = Set.make (List.map (fun (a,b) -> parseLine a, Set.make b) l)
+  let lookaheadPairConversion_old l = Set.make (List.map (fun (a,b) -> CFGSyntax.parseLine a, Set.make b) l)
 
   let firstPairConversion l = Set.make (List.map (fun (a,b) -> (symb a, Set.make (List.map char2symb b))) l)
   let followPairConversion l = Set.make (List.map (fun (a,b) -> (char2symb a, Set.make (List.map char2symb b))) l)
-  let lookaheadPairConversion l = Set.make (List.map (fun (a,b) -> (Set.nth (parseLine a) 0), Set.make (List.map char2symb b)) l)
+  let lookaheadPairConversion l = Set.make (List.map (fun (a,b) -> (Set.nth (CFGSyntax.parseLine a) 0), Set.make (List.map char2symb b)) l)
 
-  let printRepresentation (rep:ContextFreeGrammar.t) =
+  let printRepresentation (rep: t) =
     Printf.printf "Alphabet = "; Util.printAlphabet rep.alphabet;
     Printf.printf "Variables = "; Util.printAlphabet rep.variables;
     Printf.printf "Initial = %s\n" (symb2str rep.initial);
@@ -1439,7 +1424,7 @@ struct
     ) s1 && Set.size s1 = Set.size s2
 
   let testFirst g r =
-    let allResults = Set.map (fun v -> (v, g#first [v])) (g#representation : LL1Grammar.t).variables in
+    let allResults = Set.map (fun v -> (v, g#first [v])) (g#representation : t).variables in
 (*    Printf.printf "\n\tComparing:";*)
 (*    Set.iter (fun (v,b) -> Printf.printf "\n\t\t%s->\t" (symb2str v); Set.iter (fun s ->  Printf.printf " %s " (symb2str s)) b) r;*)
 (*    Printf.printf "\n\twith:";*)
@@ -1449,7 +1434,7 @@ struct
     compareTheseSets r allResults
 
   let testFollow g r =
-    let allResults = Set.map (fun v -> (v, g#follow v)) (g#representation : LL1Grammar.t).variables in
+    let allResults = Set.map (fun v -> (v, g#follow v)) (g#representation : t).variables in
 (*    Printf.printf "\n\tComparing:";*)
 (*    Set.iter (fun (v,b) -> Printf.printf "\n\t\t%s->\t" (symb2str v); Set.iter (fun s ->  Printf.printf " %s " (symb2str s)) b) r;*)
 (*    Printf.printf "\n\twith:";*)
@@ -1459,7 +1444,7 @@ struct
     compareTheseSets r allResults
     
   let testLookahead g r =
-    let rep = (g#representation : LL1Grammar.t) in
+    let rep = (g#representation : t) in
     let allResults = 
       Set.flatMap (fun v -> 
         let rules = Set.filter (fun {head=h; _} -> h = v ) rep.rules in
@@ -2220,3 +2205,5 @@ struct
 			testEmptyRemoval3 ()
 		end
 end
+
+#endif

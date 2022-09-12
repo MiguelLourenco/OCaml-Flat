@@ -1,7 +1,9 @@
+#ifdef ALL
+
 (*
  * PushdownAutomaton.ml
  *
- * This file is part of the OCamlFlat library
+ * This file is part of the OCamlFLAT library
  *
  * LEAFS project (partially supported by the OCaml Software Foundation) [2020/21]
  * FACTOR project (partially supported by the Tezos Foundation) [2019/20]
@@ -255,3 +257,5 @@ struct
 			test0 ()
 		end
 end
+
+#endif

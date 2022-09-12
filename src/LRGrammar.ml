@@ -1,7 +1,9 @@
+#ifdef ALL
+
 (*
  * LRGrammar.ml
  *
- * This file is part of the OCamlFlat library
+ * This file is part of the OCamlFLAT library
  *
  * LEAFS project (partially supported by the OCaml Software Foundation) [2020/21]
  * FACTOR project (partially supported by the Tezos Foundation) [2019/20]
@@ -27,7 +29,7 @@
  *)
  
 open BasicTypes
-open CFGSyntax
+open CFGTypes  
 
 (*
 module type LRGrammarSig =
@@ -95,8 +97,6 @@ end
 module LR0Grammar =
 struct
 	open LRAux
-	type t = ContextFreeGrammar.t
-	type tx = ContextFreeGrammar.tx
 
 	type lr0Item = {head:symbol; body1:symbol list; body2:symbol list}		
 	type lr0State = lr0Item set
@@ -310,8 +310,6 @@ module SLR1Grammar =
 struct
 	open LRAux
 	open LR0Grammar
-	type t = ContextFreeGrammar.t
-	type tx = ContextFreeGrammar.tx
 	
 (*
 	type lr0Item = LR0Grammar.lr0Item		
@@ -502,8 +500,6 @@ end
 module LR1Grammar =
 struct
 	open LRAux
-	type t = ContextFreeGrammar.t
-	type tx = ContextFreeGrammar.tx
 	
 	type lr1Item = {head:symbol; body1:symbol list; body2:symbol list; lookahead:symbols}	
 	type lr1State = lr1Item set
@@ -937,8 +933,6 @@ end
 (*----- Test functions LR1-----*)
 module LRTests =
 	struct
-	type t = ContextFreeGrammar.t
-	type tx = ContextFreeGrammar.tx
 	open LR0Grammar
 	open SLR1Grammar
 	open LR1Grammar
@@ -1251,8 +1245,6 @@ end
 	
 module LRGrammar =
 struct
-	type t = ContextFreeGrammar.t
-	type tx = ContextFreeGrammar.tx
 	open LR1Grammar
 	
 	class model (arg: (t,tx) Arg.alternatives) =
@@ -1294,3 +1286,5 @@ struct
 		)
 end
 *)
+
+#endif

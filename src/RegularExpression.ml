@@ -1,7 +1,7 @@
 (*
  * RegularExpression.ml
  *
- * This file is part of the OCamlFlat library
+ * This file is part of the OCamlFLAT library
  *
  * LEAFS project (partially supported by the OCaml Software Foundation) [2020/21]
  * FACTOR project (partially supported by the Tezos Foundation) [2019/20]
@@ -32,15 +32,11 @@
  *)
 
 open BasicTypes
-open RegExpSyntax
 
 module type RegularExpressionSig =
-sig	
-	type tx = string
-	type t = RegExpSyntax.t
-	type reTree =
-	| Fail
-	| Tree of word * t * reTree list
+sig
+	open RegExpTypes
+
 	val modelDesignation : string
 	class model :
 		(t,tx) Arg.alternatives ->
@@ -79,49 +75,12 @@ end
 
 module RegularExpression : RegularExpressionSig =
 struct
-	type tx = string
-
-	type t = RegExpSyntax.t
-	
-	type reTree =
-	| Fail
-	| Tree of word * t * reTree list
+	open RegExpTypes
 
 	let modelDesignation = "regular expression"
 
-	let internalize (re: tx): t =
-		RegExpSyntax.parse re
-
-	let externalize (re: t): tx =
-		RegExpSyntax.toString re
-
-	let fromJSon j =
-		if JSon.isNull j || not (JSon.hasField j "kind") then
-			RegExpSyntax.Zero
-		else
-			let re = JSon.fieldString j "re" in
-				RegExpSyntax.parse re
-
-	let toJSon (rep: t): JSon.t =
-		JSon.makeAssoc [
-			("re", JSon.makeString (RegExpSyntax.toString rep));
-		]
-
 	(* auxiliary functions *)
 	let seqConcat aset bset = Set.flatMap (fun s1 -> Set.map (fun s2 -> s1@s2) bset) aset
-
-	let displayHeader (name: string) (xTypeName: string) =
-		if name = "" then
-			""
-		else
-			("let " ^ name ^ ": " ^ xTypeName ^ " =\n\t\t")
-
-	let toDisplayString (name: string) (xTypeName: string) (repx: tx): string =
-		Printf.sprintf {zzz|
-		%s	%s
-		|zzz}
-			(displayHeader name xTypeName)
-			(Util.string2DisplayString repx)
 
 	class model (arg: (t,tx) Arg.alternatives) =
 		object(self) inherit Model.model arg modelDesignation as super
@@ -129,19 +88,19 @@ struct
 			val representation: t =
 				match arg with
 					| Arg.Representation r -> r
-					| Arg.RepresentationX r -> internalize r
-					| _ -> fromJSon (Arg.fromAlternatives arg)
+					| Arg.RepresentationX r -> RegExpConversions.internalize r
+					| _ -> RegExpConversions.fromJSon (Arg.fromAlternatives arg)
 
 			initializer self#handleErrors	(* placement is crucial - after representation *)
 
 			method toJSon: JSon.t =
-				JSon.append (super#toJSon) (toJSon representation)
+				RegExpConversions.toJSon (super#toJSon) representation
 
 			method representation: t =
 				representation
 
 			method representationx: tx =
-				externalize representation
+				RegExpConversions.externalize representation
 
 			method validate = (
 
@@ -470,29 +429,14 @@ struct
 					| _ -> super#checkProperty prop
 
 		(* Learn-OCaml support *)
-			method moduleName =
-				"RegularExpression"
-
-			method xTypeName =
-				"regularExpression"
-
-			method xTypeDeclString : string = {|
-				type regularExpression = string
-				|}
-
+			method moduleName = RegExpForLearnOCaml.moduleName
+			method xTypeName = RegExpForLearnOCaml.xTypeName
+			method xTypeDeclString : string = RegExpForLearnOCaml.prelude
 			method toDisplayString (name: string): string =
-				toDisplayString name self#xTypeName self#representationx
-
-			method example : JSon.t =
-				JSon.parse {| {
-					kind : "regular expression",
-					description : "this is a simple example",
-					name : "example",
-					re : "w*+(w+yz)*"
-				} |}
+				RegExpForLearnOCaml.solution name self#representationx
+			method example : JSon.t = RegExpForLearnOCaml.example
 		end
 end
-
 
 module RegularExpressionTests: sig end =
 struct
@@ -636,4 +580,3 @@ struct
 			testMore ()
 		end
 end
-

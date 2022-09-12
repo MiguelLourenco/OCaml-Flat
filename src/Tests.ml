@@ -1,7 +1,7 @@
 (*
  * Tests.ml
  *
- * This file is part of the OCamlFlat library
+ * This file is part of the OCamlFLAT library
  *
  * LEAFS project (partially supported by the OCaml Software Foundation) [2020/21]
  * FACTOR project (partially supported by the Tezos Foundation) [2019/20]
@@ -28,19 +28,23 @@
  * tests in several modules and this stuff needs to be reviewed.
  *)
 
-open TopLevel
-open Examples
-
 module Tests : sig end =
 struct
+	open Examples
+
 	let active = false
+
+(*
+	open TopLevel
+
+
 
 	let test1 () =
 		let a = fa_predef "dfa_1" in
-			Util.println [if fa_accept a "ab" then "OK" else "ERROR"]
+			Util.println [if fa_accept a "ab" then "OK" else "ERROR"] *)
 
 	let runAll =
 		if Util.testing active "Tests" then begin
-			test1 ()
+
 		end
 end

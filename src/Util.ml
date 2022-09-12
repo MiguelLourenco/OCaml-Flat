@@ -1,7 +1,7 @@
 (*
  * Util.ml
  *
- * This file is part of the OCamlFlat library
+ * This file is part of the OCamlFLAT library
  *
  * LEAFS project (partially supported by the OCaml Software Foundation) [2020/21]
  * FACTOR project (partially supported by the Tezos Foundation) [2019/20]
@@ -35,13 +35,6 @@ module type UtilSig =
 sig
 	val stripChars : string -> string -> string
 	val stripHead : string -> string
-	val symbol2DisplayString : symbol -> string
-	val string2DisplayString : string -> string
-	val state2DisplayString : state -> string
-	val symbolList2DisplayString : symbol list -> string
-	val stringList2DisplayString : string list -> string
-	val stateList2DisplayString : state list -> string
-	val transitions2DisplayString : (state*symbol*state) list -> string
 
 	val flatMap:  ('a -> 'b list) -> 'a list -> 'b list
 	val concatAll : 'a list -> 'a list list -> 'a list list
@@ -104,38 +97,7 @@ struct
 				end
 			done;
 			Bytes.to_string (Bytes.sub res 0 !j)
-
-	let symbol2DisplayString s =
-		"\"" ^ symb2str s ^ "\""
-
-	let string2DisplayString s =
-		"\"" ^ s ^ "\""
-	
-	let state2DisplayString s =
-		"\"" ^ (state2str s) ^ "\""
-	
-	let symbolList2DisplayString l =
-		let l1 = List.map (fun c -> (symb2str c)) l in
-		let core = String.concat "'; '" l1 in
-			"['" ^ core ^ "']"	
-	
-	let stringList2DisplayString l =
-		let core = String.concat "\"; \"" l in
-			"[\"" ^ core ^ "\"]"
-	
-	let stateList2DisplayString sl =
-		let l = List.map state2str sl in
-		let core = String.concat "\"; \"" l in
-			"[\"" ^ core ^ "\"]"
-
-	let transition2DisplayString (a,b,c) =
-		Printf.sprintf "(\"%s\", '%s', \"%s\")" (state2str a) (symb2str b) (state2str a)
-	
-	let transitions2DisplayString l =
-		let l1 = List.map transition2DisplayString l in
-		let core = String.concat "; " l1 in
-			"[" ^ core ^ "]"
-
+		
 	let flatMap f l =
 		List.flatten (List.map f l)
 

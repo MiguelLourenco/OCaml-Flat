@@ -1,7 +1,7 @@
 (*
  * Scanner.ml
  *
- * This file is part of the OCamlFlat library
+ * This file is part of the OCamlFLAT library
  *
  * LEAFS project (partially supported by the OCaml Software Foundation) [2020/21]
  * FACTOR project (partially supported by the Tezos Foundation) [2019/20]
@@ -25,7 +25,7 @@
  * Description: Simple lexical analyzer that assumes that the tokens are
  * the individual non-blank characters. The function getToken is available
  * to handle the rare cases where we need a multi-char token. This module is
- * suitable for the three parsers defined in the OCamlFlat library.
+ * suitable for the three parsers defined in the OCamlFLAT library.
  * The tokens are handled in a imperative style to simplify the signature of
  * of the client parsing functions.
  *)

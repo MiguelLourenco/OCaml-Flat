@@ -1,7 +1,7 @@
 (*
  * Model.ml
  *
- * This file is part of the OCamlFlat library
+ * This file is part of the OCamlFLAT library
  *
  * LEAFS project (partially supported by the OCaml Software Foundation) [2020/21]
  * FACTOR project (partially supported by the Tezos Foundation) [2019/20]
@@ -66,8 +66,6 @@ end
 module Model : ModelSig
  =
 struct
-open Exercise
-
 	class virtual model (arg: ('r,'x) Arg.alternatives) (expectedKind: string) =
 		object(self) inherit Entity.entity arg expectedKind
 		
@@ -85,13 +83,13 @@ open Exercise
 										^ prop ^ ")" in
 							failwith mesg
 			
-			method checkExercise (exercise: exercise) =
+			method checkExercise (exercise: Exercise.exercise) =
 				let rep = exercise#representation in
 					   Set.for_all self#accept rep.inside
 					&& Set.for_all (fun w -> not (self#accept w)) rep.outside
 					&& Set.for_all self#checkProperty rep.properties
 						
-			method checkExerciseFailures (exercise: exercise) =
+			method checkExerciseFailures (exercise: Exercise.exercise) =
 				let rep = exercise#representation in
 				(
 					Set.filter (fun w -> not (self#accept w)) rep.inside,

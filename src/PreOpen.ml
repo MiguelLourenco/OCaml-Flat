@@ -1,10 +1,8 @@
-open FiniteAutomaton
-open ContextFreeGrammar
-open TopLevel
 open Examples
-open Tests
 
-type finiteAutomaton = FiniteAutomaton.tx
-type regularExpression = RegularExpression.tx
-type contextFreeGrammar = ContextFreeGrammar.tx
-type finiteEnumeration = FiniteEnumeration.tx
+
+type symbol = char
+type finiteAutomaton = FinAutTypes.finiteAutomaton
+type regularExpression = RegExpTypes.regularExpression
+type contextFreeGrammar = CFGTypes.contextFreeGrammar
+type finiteEnumeration = FinEnuTypes.finiteEnumeration

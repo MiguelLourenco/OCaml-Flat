@@ -1,7 +1,7 @@
 (*
  * FiniteEnumeration.ml
  *
- * This file is part of the OCamlFlat library
+ * This file is part of the OCamlFLAT library
  *
  * LEAFS project (partially supported by the OCaml Software Foundation) [2020/21]
  * FACTOR project (partially supported by the Tezos Foundation) [2019/20]
@@ -31,44 +31,9 @@ open BasicTypes
 
 module FiniteEnumeration =
 struct
-
-	type tx = string list
-
-	type t = words
+	open FinEnuTypes
 
 	let modelDesignation = "finite enumeration"
-
-	let internalize (fe: tx): t =
-		Set.make (strings2words fe)
-
-	let externalize (fe: t): tx =
-		words2strings (Set.toList fe)
-
-	let fromJSon j =
-		if JSon.isNull j || not (JSon.hasField j "kind") then
-			Set.empty
-		else
-			let strings = JSon.fieldStringSet j "words" in
-			let words = Set.map str2word strings in
-				words
-	
-	let toJSon (rep: t): JSon.t =
-		JSon.makeAssoc [
-			("words", JSon.makeStringSet (Set.map word2str rep))
-		]
-
-	let displayHeader (name: string) (xTypeName: string) =
-		if name = "" then
-			""
-		else
-			("let " ^ name ^ ": " ^ xTypeName ^ " =\n\t\t")
-
-	let toDisplayString (name: string) (xTypeName: string) (repx: tx): string =
-		Printf.sprintf {zzz|
-		%s	%s
-		|zzz}
-			(displayHeader name xTypeName)
-			(Util.stringList2DisplayString repx)
 
 	class model (arg: (t,tx) Arg.alternatives) =
 		object(self) inherit Model.model arg modelDesignation as super
@@ -76,8 +41,8 @@ struct
 			val representation: t =
 				match arg with
 					| Arg.Representation r -> r
-					| Arg.RepresentationX r -> internalize r
-					| _ -> fromJSon (Arg.fromAlternatives arg)
+					| Arg.RepresentationX r -> FinEnuConversions.internalize r
+					| _ -> FinEnuConversions.fromJSon (Arg.fromAlternatives arg)
 
 			initializer self#handleErrors	(* placement is crucial - after representation *)
 
@@ -85,10 +50,10 @@ struct
 				representation
 
 			method representationx: tx =
-				externalize representation
+				FinEnuConversions.externalize representation
 
 			method toJSon: JSon.t =
-				JSon.append (super#toJSon) (toJSon representation)
+				FinEnuConversions.toJSon (super#toJSon) representation
 
 			method validate: unit = ()
 
@@ -106,36 +71,12 @@ struct
 					| _ -> super#checkProperty prop
 
 		(* Learn-OCaml support *)
-			method moduleName =
-				"FiniteEnumeration"
-
-			method xTypeName =
-				"finiteEnumeration"
-
-			method xTypeDeclString : string = {| {
-				type symbol = char
-				type state = string
-				type transition = state * symbol * state
-
-				type finiteAutomaton = {
-					alphabet : symbol list;
-					states : state list;
-					initialState : state;
-					transitions : transition list;
-					acceptStates : state list
-				} |}
-
+			method moduleName = FinEnuForLearnOCaml.moduleName
+			method xTypeName = FinEnuForLearnOCaml.xTypeName
+			method xTypeDeclString : string = FinEnuForLearnOCaml.prelude
 			method toDisplayString (name: string): string =
-				toDisplayString name self#xTypeName self#representationx
-
-			method example : JSon.t =
-				JSon.parse {| {
-					kind : "finite enumeration",
-					description : "this is an example",
-					name : "example",
-					words : ["Red", "Yellow", "Blue"]
-				} |}
-
+				FinEnuForLearnOCaml.solution name self#representationx
+			method example : JSon.t = FinEnuForLearnOCaml.example
 		end
 end
 

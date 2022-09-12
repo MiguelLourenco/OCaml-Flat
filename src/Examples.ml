@@ -1,7 +1,7 @@
 (*
  * Examples.ml
  *
- * This file is part of the OCamlFlat library
+ * This file is part of the OCamlFLAT library
  *
  * LEAFS project (partially supported by the OCaml Software Foundation) [2020/21]
  * FACTOR project (partially supported by the Tezos Foundation) [2019/20]
@@ -192,34 +192,43 @@ struct
 		} |}
 		
 	let cfg_balanced = {| {
-
 			kind : "context free grammar",
-			description : "Language of balanced square bracket parentheses",
+			description : "CFG: Language of balanced square bracket parentheses",
 			name : "cfg_balanced",
 			alphabet : ["[", "]"],
 			variables : ["S"],
 			initial : "S",
-			rules : [	"S -> [S] | ~"]
+			rules : [	"S -> [S] | SS | ~"]
 		} |}
 
-	let exer_balanced = {| {
+	let exer_balanced_cfg = {| {
 			kind : "exercise",
-			description : "Language of balanced square bracket parentheses",
-			name : "exer_balanced",
-			problem : "CFG than generated the language of balanced parentheses",
-			inside : ["","[]","[[]]","[[[]]]"],
-			outside : ["][","[][]","[[]]]"],
-			properties : ["true"]
+			description : "CFG: Language of balanced square bracket parentheses",
+			name : "exer_balanced_cfg",
+			problem : "CFG for the language of balanced parentheses",
+			inside : ["","[]","[[]]","[][]","[[][][][[]]][]"],
+			outside : ["[","][","[[]","[[]]]"],
+			properties : []
 		} |}
 
-	let exer_astar = {| {
+	let exer_astar_fa = {| {
 			kind : "exercise",
-			description : "Exercise astar",
-			name : "exer_astar",
-			problem : "Convert the regular expression a* to finite automaton.",
+			description : "FA: all sequences of 'a's",
+			name : "exer_astar_fa",
+			problem : "Finite automaton for all sequences of 'a's",
 			inside : ["","a","aa","aaa","aaaaaaa"],
 			outside : ["d","b","ava"],
-			properties : ["true"]
+			properties : []
+		} |}
+
+	let exer_astar_re = {| {
+			kind : "exercise",
+			description : "RE: all sequences of 'a's",
+			name : "exer_astar_re",
+			problem : "Regular expression for all sequences of 'a's",
+			inside : ["","a","aa","aaa","aaaaaaa"],
+			outside : ["d","b","ava"],
+			properties : []
 		} |}
 
 	let exer_abcd = {| {
@@ -229,7 +238,7 @@ struct
 			problem : "Convert the regular expression (a+b)*(c+d) to finite automaton.",
 			inside : ["abc","c","ab","b","abac"],
 			outside : ["","aba","bab","abba","baab","abcd"],
-			properties : ["qqq"]
+			properties : []
 		} |}
 
 	let exer_ab = {| {
@@ -239,7 +248,7 @@ struct
 			problem : "Convert the regular expression ab*+ba* to finite automaton.",
 			inside : ["a","ab","abb","abbbbbbbb","b","ba","baa","baaaaaa"],
 			outside : ["","aba","bab","abba","baab","c"],
-			properties : ["qqq"]
+			properties : []
 		} |}
 
 	let exer_re2fa = {| {
@@ -249,7 +258,7 @@ struct
 			problem : "Converta o autómato finito com alfabeto: [x, y, z], estados: [S, T, V], estado inicial: S, transições [[S, x, S], [S, y, T], [S, z, V], [T, x, T], [T, z, T], [T, y, V], [V, x, T]], e estados finais: [V] em expressão regular.",
 			inside : ["z", "xz", "yy", "yzy", "xyy", "zxxy"],
 			outside : ["x","y","xy", "xyz", "yyx", "xzxz", "xyxz"],
-			properties : ["qqq"]
+			properties : []
 		} |}
 
 	let exer_readwrite = {| {
@@ -259,7 +268,7 @@ struct
 			problem : "open,close,read,write",
 			inside : ["","orc","owc","orwc","owwrwrrc","ocorwc"],
 			outside : ["or","oo","o","w","r","c","orw","owrrww","corwc"],
-			properties : ["qqq"]
+			properties : []
 		} |}
 
 
@@ -285,9 +294,9 @@ struct
 		("cfg_simple", cfg_simple);
 		("cfg_balanced", cfg_balanced);
 
-
-		("exer_balanced", exer_balanced);
-		("exer_astar", exer_astar);
+		("exer_balanced_cfg", exer_balanced_cfg);
+		("exer_astar_fa", exer_astar_fa);
+		("exer_astar_re", exer_astar_re);
 		("exer_abcd", exer_abcd);
 		("exer_ab", exer_ab);
 		("exer_re2fa", exer_re2fa);

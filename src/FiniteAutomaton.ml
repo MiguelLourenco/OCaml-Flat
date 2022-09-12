@@ -1,7 +1,7 @@
 (*
  * FiniteAutomaton.ml
  *
- * This file is part of the OCamlFlat library
+ * This file is part of the OCamlFLAT library
  *
  * LEAFS project (partially supported by the OCaml Software Foundation) [2020/21]
  * FACTOR project (partially supported by the Tezos Foundation) [2019/20]
@@ -35,23 +35,8 @@
 open BasicTypes
 
 module type FiniteAutomatonSig = sig
+	open FinAutTypes
 
-	type transition = state * symbol * state
-	type transitions = transition set
-	type tx = {
-		alphabet : symbol list;
-		states : state list;
-		initialState : state;
-		transitions : transition list;
-		acceptStates : state list
-	}
-	type t = {
-		alphabet : symbols;
-		states : states;
-		initialState : state;
-		transitions : transitions;
-		acceptStates : states
-	}
 	val modelDesignation : string
 	class model :
 		(t,tx) Arg.alternatives ->
@@ -100,73 +85,10 @@ module type FiniteAutomatonSig = sig
 end
 
 module FiniteAutomaton : FiniteAutomatonSig =
-struct
+struct	
+	open FinAutTypes
 
-	type transition =
-		  state		(* state *)
-		* symbol	(* consumed input symbol *)
-		* state		(* next state *)
-
-	type transitions = transition set
-
-	type tx = {
-		alphabet : symbol list;
-		states : state list;
-		initialState : state;
-		transitions : transition list;
-		acceptStates : state list
-	}
-
-	type t = {
-		alphabet: symbols;			(* Alphabet *)
-		states: states;				(* States *)
-		initialState: state;		(* Initial state *)
-		transitions: transitions;	(* Transition relation *)
-		acceptStates: states		(* Accept states *)
-	}
-	
 	let modelDesignation = "finite automaton"
-
-	let internalize (fa: tx): t = {
-		alphabet = Set.make fa.alphabet;
-		states = Set.make fa.states;
-		initialState = fa.initialState;
-		transitions = Set.make fa.transitions;
-		acceptStates = Set.make fa.acceptStates
-	}
-
-	let externalize (fa: t): tx = {
-		alphabet = Set.toList fa.alphabet;
-		states = Set.toList fa.states;
-		initialState = fa.initialState;
-		transitions = Set.toList fa.transitions;
-		acceptStates = Set.toList fa.acceptStates
-	}
-
-	let fromJSon (j: JSon.t): t =
-		if JSon.isNull j || not (JSon.hasField j "kind") then {
-			alphabet = Set.empty;
-			states = Set.make [draftState];
-			initialState = draftState;
-			transitions = Set.empty;
-			acceptStates = Set.empty
-		}
-		else {
-			alphabet = JSon.fieldSymbolSet j "alphabet";
-			states = JSon.fieldStateSet j "states";
-			initialState = JSon.fieldState j "initialState";
-			transitions = JSon.fieldTriplesSet j "transitions";
-			acceptStates = JSon.fieldStateSet j "acceptStates"
-		}
-
-	let toJSon (rep: t): JSon.t =
-		JSon.makeAssoc [
-			("alphabet", JSon.makeSymbolSet rep.alphabet);
-			("states", JSon.makeStateSet rep.states);
-			("initialState", JSon.makeState rep.initialState);
-			("transitions", JSon.makeTriplesSet rep.transitions);
-			("acceptStates", JSon.makeStateSet rep.acceptStates)
-		]
 
 	(*------Auxiliary functions---------*)
 
@@ -200,38 +122,15 @@ struct
 	let nextStates st sy t =
 		let n = Set.filter (fun (a,b,c) -> st = a && sy = b) t in
 			transitionGet3 n
-
-	let displayHeader (name: string) (xTypeName: string) =
-		if name = "" then
-			""
-		else
-			("let " ^ name ^ ": " ^ xTypeName ^ " =\n\t\t")
-	
-	let toDisplayString (name: string) (xTypeName: string) (repx: tx): string =
-		Printf.sprintf {zzz|
-		%s{
-			alphabet = %s;
-			states = %s;
-			initialState = %s;
-			transitions = %s;
-			acceptStates = %s
-		}
-		|zzz}
-			(displayHeader name xTypeName)
-			(Util.symbolList2DisplayString repx.alphabet)
-			(Util.stateList2DisplayString repx.states)
-			(Util.state2DisplayString repx.initialState)
-			(Util.transitions2DisplayString repx.transitions)
-			(Util.stateList2DisplayString repx.acceptStates)
-	
+		
 	class model (arg: (t,tx) Arg.alternatives) =
 		object(self) inherit Model.model arg modelDesignation as super
 		
 			val representation: t =
 				match arg with
 				| Arg.Representation r -> r
-				| Arg.RepresentationX r -> internalize r
-				| _ -> fromJSon (Arg.fromAlternatives arg)
+				| Arg.RepresentationX r -> FinAutConversions.internalize r
+				| _ -> FinAutConversions.fromJSon (Arg.fromAlternatives arg)
 					
 			initializer self#handleErrors	(* placement is crucial - after representation *)
 
@@ -239,10 +138,10 @@ struct
 				representation
 
 			method representationx: tx =
-				externalize representation
+				FinAutConversions.externalize representation
 
 			method toJSon: JSon.t =
-				JSon.append (super#toJSon) (toJSon representation)
+				FinAutConversions.toJSon (super#toJSon) representation
 
 			(**
 			* This method verifies if the automaton is valid.
@@ -507,6 +406,7 @@ struct
 			* Desc: The new automaton is created by eliminating from the original automaton all its non useful states, all transitions
 			* that have a non useful state, and all symbols of the alphabet that only appear in said transitions
 			*)
+
 			method cleanUselessStates: model =
 
 				let usfSts = self#getUsefulStates in
@@ -519,13 +419,14 @@ struct
 				let newAccSts = Set.inter representation.acceptStates usfSts in
 				let usfSts = Set.add representation.initialState usfSts in
 
-				new model (Arg.Representation {
-								alphabet = usfAlf;
-								states = usfSts;
-								initialState = representation.initialState;
-								transitions = usfTrs;
-								acceptStates = newAccSts
-						} )
+				let fa = {
+						alphabet = usfAlf;
+						states = usfSts;
+						initialState = representation.initialState;
+						transitions = usfTrs;
+						acceptStates = newAccSts
+				} in
+					new model (Arg.Representation fa)
 
 
 			(**
@@ -805,41 +706,12 @@ struct
 					| _ -> super#checkProperty prop		
 					
 		(* Learn-OCaml support *)
-			method moduleName =
-				"FiniteAutomaton"
-
-			method xTypeName =
-				"finiteAutomaton"
-
-			method xTypeDeclString : string = {|
-				type symbol = char
-				type state = string
-				type finiteAutomaton = {
-					alphabet : symbol list;
-					states : state list;
-					initialState : state;
-					transitions : (state * symbol * state) list;
-					acceptStates : state list
-				}|}
-
+			method moduleName = FinAutForLearnOCaml.moduleName
+			method xTypeName = FinAutForLearnOCaml.xTypeName
+			method xTypeDeclString : string = FinAutForLearnOCaml.prelude
 			method toDisplayString (name: string): string =
-				toDisplayString name self#xTypeName self#representationx
-
-			method example : JSon.t =
-				JSon.parse {|
-				{
-					kind : "finite automaton",
-					description : "this is an example",
-					name : "example",
-					alphabet: ["w", "z"],
-					states : ["START", "X", "Z"],
-					initialState : "START",
-					transitions : [
-						["START", "w", "X"], ["X", "z", "X"]
-					],
-					acceptStates : ["Z"]
-				}
-			|}
+				FinAutForLearnOCaml.solution name self#representationx
+			method example : JSon.t = FinAutForLearnOCaml.example
 
 		end
 end

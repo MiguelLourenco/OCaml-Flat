@@ -1,7 +1,7 @@
 (*
  * ContextFreeGrammar.ml
  *
- * This file is part of the OCamlFlat library
+ * This file is part of the OCamlFLAT library
  *
  * LEAFS project (partially supported by the OCaml Software Foundation) [2020/21]
  * FACTOR project (partially supported by the Tezos Foundation) [2019/20]
@@ -36,24 +36,13 @@ open BasicTypes
 
 module type ContextFreeGrammarSig =
 sig
-	type cfgTree = Leaf of char | Root of char * cfgTree list
-	type tx = {
-		alphabet : symbol list;
-		variables : variable list;
-		initial : variable;
-		rules : string list
-	}
-	type t = {
-		alphabet : symbols;
-		variables : variables;
-		initial : variable;
-		rules : CFGSyntax.rules
-	}
+	open CFGTypes
+
 	val modelDesignation : string
 	
 	val first : word -> bool -> t -> symbol Set.t
 	val follow : symbol -> bool -> t -> symbol Set.t
-	val lookahead : CFGSyntax.rule -> bool -> t -> symbol Set.t
+	val lookahead : rule -> bool -> t -> symbol Set.t
 	
 	class model :
 		(t,tx) Arg.alternatives ->
@@ -70,7 +59,7 @@ sig
 				method isRegular: bool
 				method first: word -> symbol Set.t
 			  method follow: symbol -> symbol Set.t
-			  method lookahead: CFGSyntax.rule -> symbol Set.t
+			  method lookahead: rule -> symbol Set.t
 				method accept: word -> bool
 				method acceptWithTracing: word -> unit
 				method generate: int -> words
@@ -89,69 +78,14 @@ sig
 			end
 end
 
+
+
+
 module ContextFreeGrammar : ContextFreeGrammarSig =
 struct
-  open CFGSyntax
-
-	type cfgTree = Leaf of char | Root of char * cfgTree list
-
-	open CFGSyntax
-
-	type tx = {
-		alphabet : symbol list;
-		variables : variable list;
-		initial : variable;
-		rules : string list
-	}
-
-	type t = {
-		alphabet : symbols;
-		variables : variables;
-		initial : variable;
-		rules : CFGSyntax.rules
-	}
+	open CFGTypes
 
 	let modelDesignation = "context free grammar"
-
-	let internalize (cfg: tx): t = {
-		alphabet = Set.make cfg.alphabet;
-		variables = Set.make cfg.variables;
-		initial = cfg.initial;
-		rules = CFGSyntax.parse (Set.make cfg.rules)
-	}
-
-	let externalize (cfg: t): tx = {
-		alphabet = Set.toList cfg.alphabet;
-		variables = Set.toList cfg.variables;
-		initial = cfg.initial;
-		rules = CFGSyntax.toStringList cfg.rules
-	}
-
-	let fromJSon j =
-		if JSon.isNull j || not (JSon.hasField j "kind") then {
-			alphabet = Set.empty;
-			variables = Set.make [draftVar];
-			initial = draftVar;
-			rules = Set.empty;
-		}
-		else {
-			alphabet = JSon.fieldSymbolSet j "alphabet";
-			variables = JSon.fieldSymbolSet j "variables";
-			initial = JSon.fieldSymbol j "initial";
-			rules = CFGSyntax.parse (JSon.fieldStringSet j "rules");
-		}
-	
-	let rule2str {head=h; body=b} =
-		let bb = if b = [] then [epsilon] else b in
-			(symb2str h) ^ " -> " ^ (word2str bb)
-
-	let toJSon (rep: t): JSon.t =
-		JSon.makeAssoc [
-			("alphabet", JSon.makeSymbolSet rep.alphabet);
-			("variables", JSon.makeSymbolSet rep.variables);
-			("initial", JSon.makeSymbol rep.initial);
-			("rules", JSon.makeStringSet (Set.map rule2str rep.rules))
-		]
 
 	(*------Auxiliary functions---------*)
 
@@ -198,28 +132,6 @@ struct
 		let hasVar w = List.exists (fun c -> Set.belongs c vs) w in
 		let ws = Set.filter (fun w -> not (hasVar w)) ws in
 			Set.map (fun w -> removeEpsi w) ws
-
-	let displayHeader (name: string) (xTypeName: string) =
-		if name = "" then
-			""
-		else
-			("let " ^ name ^ ": " ^ xTypeName ^ " =\n\t\t")
-
-	let toDisplayString (name: string) (xTypeName: string) (repx: tx): string =
-		Printf.sprintf {zzz|
-		%s{
-			alphabet = %s;
-			variables = %s;
-			initial = %s;
-			rules = %s
-		}
-		|zzz}
-			(displayHeader name xTypeName)
-			(Util.symbolList2DisplayString repx.alphabet)
-			(Util.symbolList2DisplayString repx.variables)
-			(Util.symbol2DisplayString repx.initial)
-			(Util.stringList2DisplayString repx.rules)
-
 
   let removeEpsilonFromWord w =
     List.filter (fun c -> c <> epsilon) w
@@ -327,8 +239,8 @@ struct
 			val representation: t =
 				match arg with
 					| Arg.Representation r -> r
-					| Arg.RepresentationX r -> internalize r
-					| _ -> fromJSon (Arg.fromAlternatives arg)
+					| Arg.RepresentationX r -> CFGConversions.internalize r
+					| _ -> CFGConversions.fromJSon (Arg.fromAlternatives arg)
 
 			initializer self#handleErrors	(* placement is crucial - after representation *)
 
@@ -336,10 +248,10 @@ struct
 				representation
 
 			method representationx: tx =
-				externalize representation
+				CFGConversions.externalize representation
 
 			method toJSon: JSon.t =
-				JSon.append (super#toJSon) (toJSon representation)
+				CFGConversions.toJSon (super#toJSon) representation
 
 			method validate: unit = (
 
@@ -440,7 +352,12 @@ struct
 			*
 			* @returns bool -> true if it accepts the word, false otherwise
 			*)
+
+
 			method accept (testWord:word) : bool =
+				ChomskyNormalForm.accept (self#representation) testWord
+
+			method private acceptXXX (testWord:word) : bool =
 
 				(* any word with a symbol not from the cfg alphabet will not be accepted
 				if not (Set.subset (Set.make testWord) representation.alphabet) then false else
@@ -647,37 +564,12 @@ struct
 					| _ -> super#checkProperty prop
 
 		(* Learn-OCaml support *)
-			method moduleName =
-				"ContextFreeGrammar"
-
-			method xTypeName =
-				"contextFreeGrammar"
-
-			method xTypeDeclString : string = {|
-				type symbol = char
-				type variable = char
-				type rule = string
-				type contextFreeGrammar = {
-					alphabet : symbol list;
-					variables : variable list;
-					initial : variable;
-					rules : rule list
-				}
-				|}
-
+			method moduleName = CFGForLearnOCaml.moduleName
+			method xTypeName = CFGForLearnOCaml.xTypeName
+			method xTypeDeclString : string = CFGForLearnOCaml.prelude
 			method toDisplayString (name: string): string =
-				toDisplayString name self#xTypeName self#representationx
-
-			method example : JSon.t =
-				JSon.parse {| {
-					kind : "context free grammar",
-					description : "this is an example",
-					name : "cfg_simple",
-					alphabet : ["0", "1"],
-					variables : ["S", "X"],
-					initial : "S",
-					rules : [ "S -> 1S0 | X", "X -> 0X1 | ~" ]
-				} |}
+				CFGForLearnOCaml.solution name self#representationx
+			method example : JSon.t = CFGForLearnOCaml.example
 		end
 end
 
@@ -718,14 +610,37 @@ struct
 		let ws = m#generate 4 in
 			Util.printWords ws
 
+	let show m =
+		let j = m#toJSon in
+			JSon.show j
+	
+	let showB b =
+		if b then print_string "YES\n"
+		else print_string "NO\n"	
+	
+	let testChomsky () =
+		let m = new ContextFreeGrammar.model (Arg.Predef "cfg_balanced") in
+			showB (m#accept (word ""));			
+			showB (m#accept (word "[[[]]]"));			
+			showB (m#accept (word "[[][][]][]"));		
+			showB (m#accept (word "[[][]]][]"))			
+
+	let testExercice () =
+		let e = new Exercise.exercise (Arg.Predef "exer_balanced") in
+		let g = new ContextFreeGrammar.model (Arg.Predef "cfg_balanced") in
+		let b = g#checkExercise e in
+			showB b
+
 	let runAll =
 		if Util.testing active "ContextFreeGrammar" then begin
+		(*
 			test0 ();
 			test1 ();
 			testRegular ();
 			testAcc ();
 			testTrace ();
-			testGen ()
+			testGen ()*)
+			testExercice()
 		end
 end
 

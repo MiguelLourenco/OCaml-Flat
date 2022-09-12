@@ -1,7 +1,10 @@
+#ifdef ALLx
+
+
 (*
  * TopLevel.ml
  *
- * This file is part of the OCamlFlat library
+ * This file is part of the OCamlFLAT library
  *
  * LEAFS project (partially supported by the OCaml Software Foundation) [2020/21]
  * FACTOR project (partially supported by the Tezos Foundation) [2019/20]
@@ -25,28 +28,23 @@
 (*
  * Description: Set of functions with simple signatures to the used in the
  * ocaml toplevel system. In a sense, this provides a command-line interface
- * to most of the functionalities of the OCamlFlat library.
+ * to most of the functionalities of the OCamlFLAT library.
  *
  * TODO: Improve.
  *)
 
 open BasicTypes
-open Exercise
-open FiniteAutomaton
-open RegularExpression
-open ContextFreeGrammar
-open LL1Grammar
-open PolyModel
 
 module TopLevel =
 struct
 (* Toplevel types *)
 
-	type finiteAutomaton = {
+	type finiteAutomaton = 
+	{
 			alphabet: symbol list;
 			states: state list;
 			initialState: state;
-			transitions: FiniteAutomaton.transition list;
+			transitions: transition??? list;
 			acceptStates: state list
 		}
 
@@ -68,7 +66,7 @@ struct
 
 	(* Toplevel convertions *)
 
-	let fa_convertTo (fa: FiniteAutomaton.t ) =
+	let fa_convertTo (fa: FinAutTypes.t ) =
 		{
 			alphabet = Set.toList fa.alphabet;
 			states = Set.toList fa.states;
@@ -77,7 +75,7 @@ struct
 			acceptStates = Set.toList fa.acceptStates
 		}
 
-	let fa_convertFrom (fa: finiteAutomaton) : FiniteAutomaton.t =
+	let fa_convertFrom (fa: finiteAutomaton) : FinAutTypes.t =
 		{
 			alphabet = Set.make fa.alphabet;
 			states = Set.make fa.states;
@@ -90,7 +88,7 @@ struct
 
 	let re_convertFrom re = RegExpSyntax.parse re
 
-	let cfg_convertTo (cfg: ContextFreeGrammar.t ) =
+	let cfg_convertTo (cfg: CFGTypes.t ) =
 		let alpha = Set.toList cfg.alphabet in
 		let variables = Set.toList cfg.variables in
 		let initial = cfg.initial in
@@ -102,7 +100,7 @@ struct
 				rules = rules
 			}
 
-	let cfg_convertFrom (cfg: contextFreeGrammar) : ContextFreeGrammar.t =
+	let cfg_convertFrom (cfg: contextFreeGrammar) : CFGTypes.t =
 			{
 				alphabet = Set.make cfg.alphabet;
 				variables = Set.make cfg.variables;
@@ -110,7 +108,7 @@ struct
 				rules = CFGSyntax.parse (Set.make cfg.rules)
 			}
 
-	let exer_convertTo (exer: Exercise.t): exercise =
+	let exer_convertTo (exer: ExerTypes.t): exercise =
 		let inws = Set.map (fun w -> word2str w) exer.inside in
 		let outws = Set.map (fun w -> word2str w) exer.outside in
 			{
@@ -119,7 +117,7 @@ struct
 				properties = Set.toList exer.properties
 			}
 
-	let exer_convertFrom (exer: exercise) : Exercise.t =
+	let exer_convertFrom (exer: exercise) : ExerTypes.t =
 		let inws = List.map (fun s -> str2word s) exer.inside in
 		let outws = List.map (fun s -> str2word s) exer.outside in
 			{
@@ -214,7 +212,7 @@ struct
 	let fa_toRegex fa =
 		let fa = fa_convertFrom fa in
 		let a = new FiniteAutomaton.model (Arg.Representation fa) in
-		let b = fa2re a in
+		let b = PolyModel.fa2re a in
 			re_convertTo b#representation
 
 	(* Regex functions *)
@@ -266,7 +264,7 @@ struct
 	let re_toFA re =
 		let re = re_convertFrom re in
 		let a = new RegularExpression.model (Arg.Representation re) in
-		let b =	re2fa a in
+		let b =	PolyModel.re2fa a in
 			fa_convertTo b#representation
 
 
@@ -309,13 +307,13 @@ struct
 	let cfg_toFA cfg =
 		let cfg = cfg_convertFrom cfg in
 		let a = new ContextFreeGrammar.model (Arg.Representation cfg) in
-		let b =	cfg2fa a in
+		let b =	PolyModel.cfg2fa a in
 			fa_convertTo b#representation
 
 	let cfg_toRe cfg =
 		let cfg = cfg_convertFrom cfg in
 		let a = new ContextFreeGrammar.model (Arg.Representation cfg) in
-		let b =	cfg2re a in
+		let b =	PolyModel.cfg2re a in
 			re_convertTo b#representation
 
   (* LL1 functions *)
@@ -389,7 +387,8 @@ struct
       
   let ll1_clean cfg =
     let cfg = cfg_convertFrom cfg in
-    let a = new LL1Grammar.model (Representation cfg) in
+	let open LL1Grammar in
+    let a = new model (Representation cfg) in
       List.map (fun {tType = t; grammar = g} -> (t, cfg_convertTo g#representation)) a#clean
 
   let ll1_isFullyProductive cfg =
@@ -449,11 +448,11 @@ struct
 
   let ll1_transformToLL1 cfg =
     let cfg = cfg_convertFrom cfg in
-    let a = new LL1Grammar.model (Representation cfg) in
+	let open LL1Grammar in
+    let a = new model (Representation cfg) in
       List.map ( fun {tType = t; grammar = g} -> 
         (t, cfg_convertTo g#representation)
                )a#transformToLL1
-
 
 	(* Exercise functions *)
 
@@ -517,3 +516,5 @@ struct
 		let (ins,outs,props) = a#checkExerciseFailures e in
 			exer_convertFailures ins outs props
 end
+
+#endif
