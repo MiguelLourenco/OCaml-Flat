@@ -25,10 +25,10 @@ NAMES =		OCamlFlat Configuration Error 			\
 			LRGrammar								\
 			ContextFreeGrammarFull					\
 													\
-			PushdownAutomaton  						\
+			TuringMachine  							\
 													\
-			TuringMachine							\
-			PolyModel								\
+			PushdownAutomaton	PolyModel			\
+													\
 													\
 			TopLevel LearnOCaml Tests PreOpen
 

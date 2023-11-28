@@ -62,6 +62,7 @@ sig
 	val dollar : symbol
 	val draftVar : variable
 	val symbolTypeName : string
+	val empty: symbol
 
 	(* WORDS *)
 	type word = symbol list
@@ -96,6 +97,13 @@ sig
 
 	(* OTHER *)	
 	type direction = L | R
+
+	val direction2string: direction -> string
+	val string2direction: string -> direction
+
+	val char2direction: char -> direction
+
+	val stringIsDirection: char -> bool
 
 	(* DISPLAY *)	
 	val str2display : string -> string
@@ -155,6 +163,8 @@ struct
 	let epsilon: symbol = symb "~" (* used for representing the empty transitions *)
 	let dollar: symbol = symb "$"
 	let draftVar: variable = symb "_"
+	let nothing: symbol = symb "_"
+	let empty: symbol = symb "B"
 
 	(* WORDS *)
 
@@ -219,6 +229,15 @@ struct
 	(* OTHER *)
 	
 	type direction = L | R
+	type 'c trail = 'c set list
+	type 'c path = 'c list
+
+	let direction2string dir : string = if dir = L then "L" else "R"
+	let string2direction dirS : direction = if dirS = "L" then L else R 
+
+	let char2direction dirC : direction = if dirC = 'L' then L else R 
+
+	let stringIsDirection dirC: bool = if dirC = 'L' || dirC = 'R' then true else false
 
 	(* DISPLAY *)
 

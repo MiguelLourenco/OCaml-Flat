@@ -551,8 +551,8 @@ struct
 		JList (List.map (fun (a,b,c,d,e) ->
 							JList [	JString (state2str a);
 									JString (symb2str b);
-									JString (state2str a);
-									JString (symb2str b);
+									JString (state2str c);
+									JString (symb2str d);
 									JString (if e = L then "L" else "R")])
 							(Set.toList s))
 

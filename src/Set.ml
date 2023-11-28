@@ -87,6 +87,9 @@ sig
 	val inter : 'a t -> 'a t -> 'a t
 	val diff : 'a t -> 'a t -> 'a t
 	val union : 'a t -> 'a t -> 'a t
+	
+	val unionUnsafe : 'a t -> 'a t -> 'a t
+
 
 	val combinations : 'a t -> 'b t -> ('a * 'b) t
 	val star : 'a list t -> int -> 'a list t
@@ -169,7 +172,8 @@ struct
 	let diff (s1: 'a t) (s2: 'a t): 'a t = List.filter (fun v -> not (belongs v s2)) s1
 (* union: join s1 with the new elements of s2 *)
 	let union (s1: 'a t) (s2: 'a t): 'a t = s1 @ (diff s2 s1)
-
+	(* pre: inter s1 s2 = [] *)
+	let unionUnsafe (s1: 'a t) (s2: 'a t): 'a t = s1 @ s2
 	let combinations (s1: 'a t) (s2: 'b t): ('a * 'b) t =
 		flatMap (fun x -> List.map (fun y -> (x,y)) s2) s1	(* already distinct *)
 	let starOne (s: 'a list t) (n: int) (l: 'a t): 'a list t = (* private auxiliary *)

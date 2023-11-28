@@ -271,11 +271,342 @@ struct
 			properties : []
 		} |}
 
+	let exer_tm = {| {
+		kind : "exercise",
+		description : "this is an example",
+		name : "exer_tm",
+		problem : "open,close,read,write",
+		inside : ["","orc","owc","orwc","owwrwrrc","ocorwc"],
+		outside : ["or","oo","o","w","r","c","orw","owrrww","corwc"],
+		properties : []
+	} |}
+			
+	let tm_astar1 = {| {
+		kind: "turing machine",
+		description: "this is an example",
+		name: "tm_astar1",
+		entryAlphabet: ["a", "b"],
+		tapeAlphabet: ["a", "b", "B"],
+		empty: "B",
+		states: ["q1", "q2"],
+		initialState: "q1",
+		transitions: [
+			["q1", "B", "q2", "B", "L"],
+			["q1", "a", "q1", "b", "R"],
+			["q1", "b", "q1", "a", "R"],
+			["q2", "a", "q2", "a", "L"],
+			["q2", "b", "q2", "b", "L"]
+		],
+		acceptStates: [],
+		criteria: "false",
+		markers: []
+		} |}
+
+	
+	let tm_astar2 = {| {
+		kind: "turing machine",
+		description: "this is an example",
+		name: "tm_astar2",
+		entryAlphabet: ["a", "b"],
+		tapeAlphabet: ["a", "b", "X", "Y","B"],
+		empty: "B",
+		states: ["q1", "q2", "q3", "q4", "q5", "q6", "q7"],
+		initialState: "q1",
+		transitions: [
+			["q1", "a", "q2", "X", "R"],
+			["q1", "b", "q5", "Y", "R"],
+			["q1", "B", "q7", "B", "L"],
+
+			["q2", "a", "q2", "a", "R"],
+			["q2", "b", "q2", "b", "R"],
+			["q2", "B", "q3", "B", "R"],
+
+			["q3", "a", "q3", "a", "R"],
+			["q3", "b", "q3", "b", "R"],
+			["q3", "B", "q4", "a", "L"],
+
+			["q4", "a", "q4", "a", "L"],
+			["q4", "b", "q4", "b", "L"],
+			["q4", "B", "q4", "B", "L"],
+			["q4", "X", "q1", "X", "R"],
+			["q4", "Y", "q1", "Y", "R"],
+
+			["q5", "a", "q5", "a", "R"],
+			["q5", "b", "q5", "b", "R"],
+			["q5", "B", "q6", "B", "R"],
+
+			["q6", "a", "q6", "a", "R"],
+			["q6", "b", "q6", "b", "R"],
+			["q6", "B", "q4", "b", "L"],
+
+			["q7", "X", "q7", "a", "L"],
+			["q7", "Y", "q7", "b", "L"]
+		],
+		acceptStates: [],
+		criteria: "false",
+		markers: []
+		} |}
+
+	let tm_astar3 = {| {
+			kind: "turing machine",
+			description: "this is an example changed",
+			name: "tm_astar3",
+			entryAlphabet: ["a", "b"],
+			tapeAlphabet: ["a", "b", "B"],
+			empty: "B",
+			states: ["q1", "q2", "q3"],
+			initialState: "q1",
+			transitions: [
+				["q1", "a", "q2", "a", "R"],
+				["q1", "b", "q1", "b", "R"],
+				["q2", "a", "q3", "a", "R"],
+				["q2", "b", "q1", "b", "R"]
+			],
+			acceptStates: ["q3"],
+			criteria: "true",
+			markers: []
+			} |}
+
+	let tm_astar4 = {| {
+			kind: "turing machine",
+			description: "this is an example",
+			name: "tm_astar4",
+			entryAlphabet: ["a", "b", "c"],
+			tapeAlphabet: ["a", "b", "c", "X", "Y", "Z", "B"],
+			empty: "B",
+			states: ["q1", "q2", "q3", "q4", "q5", "q6"],
+			initialState: "q1",
+			transitions: [
+				["q1", "B", "q6", "B", "R"],
+				["q1", "Y", "q5", "Y", "R"],
+				["q1", "a", "q2", "X", "R"],
+
+				["q2", "a", "q2", "a", "R"],
+				["q2", "Y", "q2", "Y", "R"],
+				["q2", "b", "q3", "Y", "R"],
+
+				["q3", "b", "q3", "b", "R"],
+				["q3", "Z", "q3", "Z", "R"],
+				["q3", "c", "q4", "Z", "L"],
+
+				["q4", "Z", "q4", "Z", "L"],
+				["q4", "Y", "q4", "Y", "L"],
+				["q4", "b", "q4", "b", "L"],
+				["q4", "a", "q4", "a", "L"],
+
+				["q5", "Y", "q5", "Y", "R"],
+				["q5", "Z", "q5", "Z", "R"],
+				["q5", "B", "q6", "B", "R"]
+			],
+			acceptStates: ["q6"],
+			criteria: "true",
+			markers: []
+			} |}
+
+	let tm_astar5 = {| {
+			kind: "turing machine",
+			description: "this is an example",
+			name: "tm_astar5",
+			entryAlphabet: ["a", "b"],
+			tapeAlphabet: ["a", "b", "B"],
+			empty: "B",
+			states: ["q1", "q2", "q3", "q4"],
+			initialState: "q1",
+			transitions: [
+				["q1", "a", "q2", "a", "R"],
+				["q1", "b", "q1", "b", "R"],
+				["q1", "B", "q4", "B", "R"],
+
+				["q2", "a", "q3", "a", "R"],
+				["q2", "b", "q1", "b", "R"],
+				["q2", "B", "q4", "B", "R"],
+
+				["q4", "a", "q4", "a", "R"],
+				["q4", "b", "q4", "b", "R"],
+				["q4", "B", "q4", "B", "R"]
+			],
+			acceptStates: [],
+			criteria: "false",
+			markers: []
+			} |}
+
+	let tm_astar6 = {| {
+			kind: "turing machine",
+			description: "this is an example",
+			name: "tm_astar6",
+			entryAlphabet: ["a", "b", "c"],
+			tapeAlphabet: ["a", "b", "c", "B"],
+			empty: "B",
+			states: ["q1", "q2", "q3", "q4", "q5", "q6", "q7"],
+			initialState: "q1",
+			transitions: [
+				["q1", "a", "q1", "a", "R"],
+				["q1", "b", "q1", "b", "R"],
+				["q1", "c", "q1", "c", "R"],
+
+				["q1", "c", "q2", "c", "R"],
+				["q1", "c", "q5", "c", "L"],
+
+				["q2", "a", "q3", "a", "R"],
+
+				["q3", "b", "q4", "b", "R"],
+
+				["q5", "b", "q6", "b", "L"],
+
+				["q6", "a", "q7", "a", "L"]
+			],
+			acceptStates: ["q4", "q7"],
+			criteria: "true",
+			markers: []
+			} |}
+
+	let tm_astar7 = {| {
+			kind: "turing machine",
+			description: "this is an example",
+			name: "tm_astar7",
+			entryAlphabet: ["a", "b", "c", "d", "e"],
+			tapeAlphabet: ["a", "b", "c", "d", "e", "B"],
+			empty: "B",
+			states: ["q1", "q2", "q3"],
+			initialState: "q1",
+			transitions: [
+				["q1", "a", "q2", "a", "R"],
+
+				["q1", "a", "q1", "a", "R"],
+				["q1", "b", "q1", "b", "R"],
+				["q1", "c", "q1", "c", "R"],
+				["q1", "d", "q1", "d", "R"],
+				["q1", "e", "q1", "e", "R"],
+
+				["q2", "c", "q3", "c", "R"]
+			],
+			acceptStates: ["q3"],
+			criteria: "true",
+			markers: []
+			} |}
+
+	let tm_astar8 = {| {
+			kind: "turing machine",
+			description: "this is an example",
+			name: "tm_astar8",
+			entryAlphabet: ["a"],
+			tapeAlphabet: ["a", "B"],
+			empty: "B",
+			states: ["q1", "q2", "q3"],
+			initialState: "q1",
+			transitions: [
+				["q1", "B", "q2", "B", "R"],
+				["q2", "B", "q1", "B", "L"],
+
+				["q2", "a", "q3", "a", "R"]
+			],
+			acceptStates: ["q3"],
+			criteria: "true",
+			markers: []
+			} |}
+
+	let tm_astar9 = {| {
+			kind: "turing machine",
+			description : "this is an example",
+			name: "tm_astar9",
+			entryAlphabet: ["a", "b", "c"],
+			tapeAlphabet: ["a", "b", "c", "X", "Y", "Z", "B"],
+			empty: "B",
+			states: ["q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9"],
+			initialState: "q1",
+			transitions: [
+
+				["q1", "B", "q6", "B", "R"],
+				["q1", "Y", "q5", "Y", "R"],
+				["q1", "a", "q2", "X", "R"],
+
+				["q2", "a", "q2", "a", "R"],
+				["q2", "Y", "q2", "Y", "R"],
+				["q2", "b", "q3", "Y", "R"],
+
+				["q3", "b", "q3", "b", "R"],
+				["q3", "Z", "q3", "Z", "R"],
+				["q3", "c", "q4", "Z", "L"],
+
+				["q4", "Z", "q4", "Z", "L"],
+				["q4", "Y", "q4", "Y", "L"],
+				["q4", "b", "q4", "b", "L"],
+				["q4", "a", "q4", "a", "L"],
+				
+				["q4", "X", "q1", "X", "R"],
+
+				["q5", "Y", "q5", "Y", "R"],
+				["q5", "Z", "q5", "Z", "R"],
+				["q5", "B", "q6", "B", "R"],
+
+				["q5", "b", "q9", "c", "R"],
+
+				["q7", "b", "q8", "c", "R"],
+				["q7", "B", "q6", "B", "R"]
+
+			],
+			acceptStates: ["q6"],
+			criteria: "true",
+			markers: []
+		} |}
+
+	let tm_astar10 = {| {
+		kind: "turing machine",
+		description: "this is an example",
+		name: "tm_astar10",
+		entryAlphabet: ["a", "b", "c"],
+		tapeAlphabet: ["a", "b", "c", "B"],
+		empty: "B",
+		states: ["q1"],
+		initialState: "q1",
+		transitions: [
+			["q1", "B", "q1", "c", "R"],
+			["q1", "a", "q1", "a", "R"],
+			["q1", "b", "q1", "b", "R"],
+			["q1", "c", "q1", "c", "R"]
+		],
+		acceptStates: [],
+		criteria: "false",
+		markers: []
+		} |}
+
+	let tm_astar11 = {| {
+		kind : "turing machine",
+		description : "this is an example",
+		name : "tm_astar11",
+		entryAlphabet: ["a", "b", "c"],
+		tapeAlphabet: ["a", "b", "c", "B"],
+		empty: "B",
+		states : ["q1", "q2", "q3"],
+		initialState : "q1",
+		transitions : [
+			["q1", "a", "q2", "c", "R"],
+			["q1", "b", "q1", "b", "R"],
+			["q1", "c", "q1", "a", "R"],
+			["q2", "b", "q1", "b", "L"],
+			["q2", "c", "q3", "c", "R"]
+		],
+		acceptStates : [],
+		criteria : "false",
+		markers: []
+		} |}
+
 
 
 	(* Examples table *)
 
 	let oflatExamplesTable = [
+		("tm_astar1", tm_astar1);
+		("tm_astar2", tm_astar2);
+		("tm_astar3", tm_astar3);
+		("tm_astar4", tm_astar4);
+		("tm_astar5", tm_astar5);
+		("tm_astar6", tm_astar6);
+		("tm_astar7", tm_astar7);
+		("tm_astar8", tm_astar8);
+		("tm_astar9", tm_astar9);
+		("tm_astar10", tm_astar10);
+		("tm_astar11", tm_astar11);
 		("dfa_1", dfa_1);
 		("dfa_2", dfa_2);
 		("dfa_astar", dfa_astar);

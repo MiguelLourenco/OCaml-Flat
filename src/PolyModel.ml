@@ -33,6 +33,7 @@
  *)
  
 open BasicTypes
+open Util
 
 module type PolyModelSig =
 sig
@@ -42,10 +43,15 @@ sig
 	val example2model : string -> Model.model
 	val re2fa : RegularExpression.model -> FiniteAutomaton.model
 	val fa2re : FiniteAutomaton.model -> RegularExpression.model
+	val fa2tm : FiniteAutomaton.model -> TuringMachine.model
+	val re2tm : RegularExpression.model -> TuringMachine.model
 	val re2cfg : RegularExpression.model -> ContextFreeGrammar.model
 	val fa2cfg : FiniteAutomaton.model -> ContextFreeGrammar.model
 	val cfg2fa : ContextFreeGrammar.model -> FiniteAutomaton.model
 	val cfg2re : ContextFreeGrammar.model -> RegularExpression.model
+	val cfg2tm : ContextFreeGrammar.model -> TuringMachine.model
+
+	
 end
 
 module PolyModel : PolyModelSig =
@@ -166,6 +172,131 @@ struct
 		in
 
 			new FiniteAutomaton.model (Arg.Representation (compile re#representation))
+
+	let fa2tm (fa : FiniteAutomaton.model) = 
+		let rep: FinAutTypes.t = fa#representation in
+		let transitionsFa2Tm trns = Set.map (fun (a,b,c) -> (a,b,c,b,R)) trns in
+		let tm: TurMachTypes.t = {
+						entryAlphabet = rep.alphabet;
+						tapeAlphabet = rep.alphabet;
+						empty = empty;
+						states = rep.states;
+						initialState = rep.initialState;
+						transitions = transitionsFa2Tm rep.transitions;
+						acceptStates = rep.acceptStates;
+						criteria = true;
+						markers = Set.empty
+					}	in
+		new TuringMachine.model (Arg.Representation tm)
+
+	let re2tm (re: RegularExpression.model) =
+		let reFA = re2fa re in
+			fa2tm reFA
+
+	(* Fazer conversao de TM para FA, quando as condicoes se reunem*)
+ (*
+	let generateTransitionsToPD st alphEntr alphPD =
+		let allAlph = Set.add "$" (Set.union alphEntr alphPD) in
+			Set.map (fun symb -> (st,symb,st,symb,R)) allAlph 
+
+	let generateTransitionsFromPD st alphEntr alphPD =
+		let allAlph = Set.add "$" (Set.union alphEntr alphPD) in
+			Set.map (fun symb -> (st,symb,st,symb,L)) allAlph 
+
+	let insertSymbolsPD alphEntr alphPD initSymbPD initState sts trs =
+		let newSts = ["q0", "q1","q2"] in
+		let newTrs = Set.union (Set.union (generateTransitionsToPD "q0" alphEntr alphPD) [("q0","B","q1","$",R); ("q1","B","q2",initSymbPD,R); ("q2","B",initState,"B",R)]) (generateTransitionsFromPD "q2" alphEntr alphPD) in
+			(Set.union sts newSts) , (Set.union trs newTrs)
+
+	let fillStackTransition stLast prevSt trs wordL = 
+		match wordL with
+		| [] -> trs
+		| x::y ->	let newState = if (Set.isEmpty y) then stLast else IdGenerator.gen("q") in
+							let dir = if (Set.isEmpty y) then L else R in
+								fillStackTransition newState (Set.union trs (prevSt, "B", newState, x, dir)) y
+
+	let convertTransitionX trs alphEntr alphPD initialStackSymb = 
+		let (_,readSymbol,_,_,_) = trs in
+			if readSymbol == dollar then convertAcceptTransition trs alphEntr alphPD initialStackSymb
+			else convertNormalTransition trs alphEntr alphPD 
+
+	let convertNormalTransition trs alphEntr alphPD =
+		let (startState,unstackedSymbol,readSymbol,nextState,writeSymbolL) = trs in
+
+		let st1 = IdGenerator.gen("q") in
+		let st2 = IdGenerator.gen("q") in
+		let st3 = IdGenerator.gen("q") in
+		let st4 = IdGenerator.gen("q") in
+
+		let ftrs = (startState,readSymbol,st1,"B",R) in
+		let trsTPD = Set.add ftrs (generateTransitionsToPD st1 alphEntr alphPD) in
+		let trsRTOP = Set.add (st1,"B",st2,"B",L) trsTPD in
+
+		let firstDirection = if (writeSymbolL.length == 1) then L else R in
+		let lastSt = if (writeSymbolL.length == 1) then st3 else st4 in
+
+		let replaceTop = Set.add (st2,unstackedSymbol,st3,writeSymbolL.hd, firstDirection) trsRTOP in
+		let additionalSymbolTrs = Set.union replaceTop (fillStackTransition lastSt st3 Set.empty writeSymbolL.tl) in
+		let trsFPD = Set.union additionalSymbolTrs (generateTransitionsFromPD lastSt alphEntr alphPD) in
+		let trsLast = Set.add (stLast,"B",nextState,"B",R) trsFPD in
+			Set.add lastSt (Set.add st3 (Set.add st2 (Set.add st1 Set.empty))), trsLast
+
+	let convertAcceptTransition trs alphEntr alphPD initialStackSymb =
+		let (startState,unstackedSymbol,readSymbol,nextState,writeSymbolL) = trs in
+
+		let st1 = IdGenerator.gen("q") in
+		let st2 = IdGenerator.gen("q") in
+		let st3 = IdGenerator.gen("q") in
+		
+		let ftrs = Set.union (startState,dollar,st1,dollar,R) Set.empty in
+		let checkInitSS = Set.union (st1,initialStackSymb,st2,"B",R) ftrs in
+		let lastCheck = Set.union (st2,"B",st3,"B",R) checkInitSS in
+			Set.add st3 (Set.add st2 (Set.add st1 Set.empty)), lastCheck
+
+	let convertTransitions newSts newTrs trs alphEntr alphPD initialStackSymb = 
+		match trs with
+		| [] -> newSts, newTrs
+		| x::y -> let (nSts,nTrs) = convertTransitionX x alphEntr alphPD initialStackSymb in
+								convertTransitions (Set.union nSts newSts) (Set.union nTrs newTrs) trs alphEntr alphPD initialStackSymb
+
+(*Se parar por pilha vazia 'e ncess'ario criar um estado final*)
+
+	let getFinalStates fsts trs =
+		Set.map (fun (_,_,_,d,_) -> d) (Set.filter (fun (_,_,c,_,_) -> b == dollar) trs)
+
+	let pda2tm (pda: PushdownAutomaton.model) =
+		IdGenerator.reset();;
+		let rep: FinAutTypes.t = pda#representation in
+		let (initialStates, initialTransitions) = insertSymbolsPD rep.inputAlphabet rep.stackAlphabet rep.initialStackSymbol rep.initialState rep.states rep.transitions in
+		let (convertedTransitionStates,convertedTransitions) = convertTransitions Set.empty Set.empty rep.transitions rep.inputAlphabet rep.stackAlphabet rep.initialStackSymbol in
+		let allAlphabet = Set.union rep.inputAlphabet rep.stackAlphabet in
+		let allStates = Set.union initialStates convertedTransitionStates in
+		let allTransitions = Set.union initialTransitions convertedTransitions in
+		let allAcceptStates = Set.union rep.acceptStates (getFinalStates rep.transitions) in
+		let tm: TurMachTypes.t = {
+						alphabet = allAlphabet;
+						states = allStates;
+						initialState = rep.initialState;
+						transitions = allTransitions;
+						acceptStates = rep.acceptStates;
+						criteria = true
+					}	in
+		new TuringMachine.model (Arg.Representation tm)
+	*)
+	(*
+		module IdGenerator =
+		struct
+			let current = ref 0;;
+
+			let reset () =
+				current := 0
+
+			let gen (s: string) =
+				let res = Printf.sprintf "%s%02d" s (!current) in
+					current := !current+1;
+					res
+		end
+	*)
 
 	let fa2reMake fa =
 		let open FinAutTypes in
@@ -485,6 +616,10 @@ struct
 	let cfg2re cfg =
 		let fa = cfg2fa cfg in
 			fa2re fa
+
+	let cfg2tm (cfg: ContextFreeGrammar.model) =
+		let cfgFA = cfg2fa cfg in
+			fa2tm cfgFA
 end
 
 module PolyModelTests: sig end =

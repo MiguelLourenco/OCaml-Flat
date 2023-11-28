@@ -49,6 +49,8 @@ sig
 	val printAlphabet : symbols -> unit
 	val printStates : states -> unit
 	val printTransition : string -> symbol -> string -> unit
+	val printTransitionTM : state -> symbol -> state -> symbol -> direction -> unit 
+	val printTransitionPDA :state -> symbol -> symbol -> state -> symbol list -> unit
 	val printWords : words -> unit
 	val printStrings : string set -> unit
 	val show : string -> unit
@@ -161,6 +163,14 @@ struct
 	let printTransition (a:string) (b:symbol) (c:string) =
 		println ["("; a; ", "; symb2str b; ", "; c; ")"]
 
+	let printTransitionTM (a:state) (b:symbol) (c:state) (d:symbol) (e:direction) =
+		println ["("; state2str a; ", "; symb2str b; ", "; state2str c; ", "; symb2str d; ", "; direction2string e ; ")"]
+
+	let printTransitionPDA (a:state) (b:symbol) (c:symbol) (d:state) (e: symbol list) =
+		println ["("; state2str a; ", "; symb2str b; ", "; symb2str c; ", "; state2str d; ", ["];
+		Set.iter (fun x -> print [symb2str x; ", "]) (Set.make e);
+		print ["])"]
+
 	let printWord (w:word) =
 		println ["'"; word2str w; "'"]
 
@@ -216,4 +226,55 @@ struct
 			test0 ();
 			test1 ()
 		end
+end
+
+module IdGenerator =
+struct
+	let current = ref 0;;
+
+	let reset () =
+		current := 0
+
+	let gen (s: string) =
+		let res = Printf.sprintf "%s%02d" s (!current) in
+			current := !current+1;
+			res
+end
+
+module type RuntimeControlSig =
+sig
+	val start: unit -> unit
+	val giveUp: int -> bool
+	val stats: unit -> bool * int * float
+end
+
+module RuntimeControl : RuntimeControlSig =
+struct
+	let _CONFIGS_ALLOWANCE = 10
+	let _TIME_ALLOWANCE = 10.0
+	
+	let timeStart = ref 0.0
+	let exactResult = ref false
+	let runconfigs = ref 0
+	let runtime = ref 0.0		(* in seconds *)
+
+	let start () =
+		timeStart := Sys.time();
+		exactResult := true;
+		runconfigs := 0;
+		runtime := 0.0
+
+	let giveUp n =	
+		runconfigs := n;
+		runtime := Sys.time() -. !timeStart;
+		(*Printf.printf "(%6d, %f)\n" !configs !time;*)
+		if !runtime > _TIME_ALLOWANCE || !runconfigs > _CONFIGS_ALLOWANCE then begin
+			exactResult := false;
+			true
+		end
+		else
+			false
+
+	let stats () =
+		(!exactResult, !runconfigs, !runtime)
 end
